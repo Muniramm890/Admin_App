@@ -6,7 +6,7 @@ import { Mark } from "../ui/BrandLogo";
 import { Icon } from "../ui/Icon";
 import { C } from "../../theme/theme";
 
-export const Sidebar = ({ active, onNav, collapsed, school, userRole }) => (
+export const Sidebar = ({ active, onNav, collapsed, school, userRole, isAllowed }) => (
    <div
     style={{
       width: collapsed ? 70 : 230,
@@ -73,7 +73,11 @@ export const Sidebar = ({ active, onNav, collapsed, school, userRole }) => (
       )}
     </div>
     <div style={{ flex: 1, padding: "8px 8px", overflowY: "auto" }}>
-      {NAV_ITEMS.filter((g) => !g.superAdminOnly || userRole === "school_admin").map((g) => (
+      {/* [teacher-app] sirf wahi modules jo user ko assigned hain (isAllowed); khali group hide */}
+      {NAV_ITEMS.filter((g) => !g.superAdminOnly || userRole === "school_admin")
+        .map((g) => ({ ...g, items: g.items.filter((i) => !isAllowed || isAllowed(i.id)) }))
+        .filter((g) => g.items.length > 0)
+        .map((g) => (
         <div key={g.group}>
           {!collapsed && <div className="sidebar-group">{g.group}</div>}
           {g.items.map((item) => (

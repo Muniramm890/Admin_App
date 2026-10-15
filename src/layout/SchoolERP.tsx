@@ -6,6 +6,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { apiRequest } from "../api/client";
 import { Sidebar } from "../components/layout/Sidebar";
 import { NAV_ITEMS } from "../components/layout/navItems";
+import { canAccess } from "../utils/access";
+import { NoModulesAssigned } from "../components/ui/NoModulesAssigned";
 import { NotificationModal } from "../components/modals/NotificationModal";
 import { ProfileModal } from "../components/modals/ProfileModal";
 import { Icon } from "../components/ui/Icon";
@@ -53,6 +55,15 @@ export const SchoolERP = () => {
   const pathSeg = location.pathname.replace(/^\//, "").split("/")[0];
   const activeModule = ID_BY_PATH[pathSeg] || pathSeg || "dashboard";
   const setActiveModule = (id) => navigate("/" + (PATH_BY_ID[id] || id));
+  // [teacher-app] module-wise access: sirf assigned modules (school_admin ko sab). Backend moduleGate asli enforcement karta hai.
+  const isAllowed = (id) => canAccess(user, id);
+  const allowedIds = NAV_ITEMS.flatMap((g) => g.items).map((i) => i.id).filter(isAllowed);
+  const firstAllowed = allowedIds[0];
+  const moduleAllowed = isAllowed(activeModule);
+  useEffect(() => {
+    // Allowed nahi hai (URL se direct khola / pehla page assign nahi) -> pehle allowed module par redirect
+    if (!moduleAllowed && firstAllowed) navigate("/" + (PATH_BY_ID[firstAllowed] || firstAllowed), { replace: true });
+  }, [moduleAllowed, firstAllowed, pathSeg]); // eslint-disable-line
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [school, setSchool] = useState(SCHOOL_CONFIG);
@@ -114,6 +125,7 @@ export const SchoolERP = () => {
   }, []);
 
   const renderModule = () => {
+    if (!moduleAllowed) return firstAllowed ? null : <NoModulesAssigned />;
     switch (activeModule) {
       case "dashboard":
         return <DashboardModule school={school} />;
@@ -190,6 +202,7 @@ export const SchoolERP = () => {
           collapsed={sidebarCollapsed}
           school={school}
           userRole={user?.role}
+          isAllowed={isAllowed}
         />
       </div>
 
@@ -216,6 +229,7 @@ export const SchoolERP = () => {
               collapsed={false}
               school={school}
               userRole={user?.role}
+          isAllowed={isAllowed}
             />
           </div>
         </div>

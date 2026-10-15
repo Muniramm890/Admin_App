@@ -100,7 +100,9 @@ export const AuthProvider = ({ children }) => {
         // 🔴 Server se actually verify karo ki token valid hai — race against 5s timeout
         const res = await Promise.race([apiRequest("/auth/me"), timeout]);
         const d = res?.data || res;
-        setUser({ id: d.id, role: d.role, name: d.full_name || "User", schoolId: d.school_id, avatarUrl: d.avatar_url || "" });
+        setUser({ id: d.id, role: d.role, name: d.full_name || "User", schoolId: d.school_id, avatarUrl: d.avatar_url || "",
+          // [teacher-app] module permissions (User Management se assign) — sidebar/route guard me use hote hain
+          permissions: Array.isArray(d.permissions?.modules) ? d.permissions.modules : [] });
       } catch (e) {
         if (e.message === "Auth check timed out") {
           // Server slow/unreachable — token abhi bhi VALID ho sakta hai, isko delete mat karo
@@ -143,6 +145,8 @@ export const AuthProvider = ({ children }) => {
               name: payload.name || payload.user?.fullName || "User",
               schoolId: payload.schoolId || payload.user?.school?.id,
               avatarUrl: payload.avatarUrl || payload.user?.avatar_url || "",
+              // [teacher-app] module permissions
+              permissions: Array.isArray(payload.user?.permissions?.modules) ? payload.user.permissions.modules : [],
             });
     } catch (error) {
       throw { response: { data: { error: error.message || "Login failed" } } };
