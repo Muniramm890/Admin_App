@@ -22,4 +22,6 @@ src/
 ├── hooks/, utils/, data/, theme/, pages/ (Login, ForgotPassword)
 ```
 
+Routing: `react-router-dom` — har module ka apna URL (`/students`, `/fees`, `/transport` ...). Production hosting par SPA fallback (sab paths → `index.html`) lagana zaroori hai.
+
 Run: `npm install` → `npm run dev`  |  Build: `npm run build`

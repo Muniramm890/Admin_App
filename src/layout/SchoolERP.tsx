@@ -2,6 +2,7 @@
 // Source: admin App.tsx -> SchoolERP [23356-23689]
 // @ts-nocheck
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { apiRequest } from "../api/client";
 import { Sidebar } from "../components/layout/Sidebar";
 import { NAV_ITEMS } from "../components/layout/navItems";
@@ -43,7 +44,15 @@ import { C, SCHOOL_CONFIG, applyTheme, getSavedTheme, injectStyles } from "../th
 export const SchoolERP = () => {
   const { user, logout } = useAuth();
   const { academicYears, academicYearId, setAcademicYearId, sessionLoading } = useSession();
-  const [activeModule, setActiveModule] = useState("dashboard");
+  // [teacher-app] was: const [activeModule, setActiveModule] = useState("dashboard");
+  // Ab active module URL se aata hai (/students, /fees ...), taaki browser link/back/refresh kaam kare.
+  const navigate = useNavigate();
+  const location = useLocation();
+  const PATH_BY_ID = { TransportModule: "transport" };
+  const ID_BY_PATH = { transport: "TransportModule" };
+  const pathSeg = location.pathname.replace(/^\//, "").split("/")[0];
+  const activeModule = ID_BY_PATH[pathSeg] || pathSeg || "dashboard";
+  const setActiveModule = (id) => navigate("/" + (PATH_BY_ID[id] || id));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [school, setSchool] = useState(SCHOOL_CONFIG);

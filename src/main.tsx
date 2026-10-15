@@ -1,5 +1,6 @@
 // FILE: teacher-app/src/main.tsx
 import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { injectStyles } from "./theme/theme";
 
@@ -11,4 +12,9 @@ injectStyles();
 // jisse MainLayout ka splash-timer cancel ho jata hai aur page refresh (saved token) par splash screen par atak jata hai.
 // Production build me ye issue nahi tha; yahan dono me safe rakha hai.
 const rootElement = document.getElementById("root")!;
-ReactDOM.createRoot(rootElement).render(<App />);
+// [teacher-app] BrowserRouter add kiya: module badalne par URL badle (admin me sirf useState tha)
+ReactDOM.createRoot(rootElement).render(
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
+);
