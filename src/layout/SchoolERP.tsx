@@ -346,11 +346,12 @@ export const SchoolERP = () => {
                 </div>
               )}
               <div className="hide-mobile">
-                <div style={{ fontSize: 12, fontWeight: 600, textTransform: "capitalize" }}>
-                  {(user?.role || "User").replace(/_/g, " ")}
+                {/* [teacher-app] was: line1 = role, line2 = school.name.split(" ")[0] → ab line1 = first name, line2 = role */}
+                <div style={{ fontSize: 12, fontWeight: 600 }}>
+                  {(user?.name || "User").trim().split(" ")[0]}
                 </div>
-                <div style={{ fontSize: 10, color: C.textMuted }}>
-                  {school.name.split(" ")[0]}
+                <div style={{ fontSize: 10, color: C.textMuted, textTransform: "capitalize" }}>
+                  {(user?.role || "User").replace(/_/g, " ")}
                 </div>
               </div>
             </div>
