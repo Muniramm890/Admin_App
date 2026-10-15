@@ -1,24 +1,16 @@
 // FILE: teacher-app/src/App.tsx
-// Source: admin App.tsx -> MainLayout (verbatim, except SchoolERP -> placeholder) + App providers order
+// Source: admin App.tsx -> MainLayout [25702-25722], App [25725-25737]
 // @ts-nocheck
-import React, { useState, useEffect, useRef } from "react";
-import { DialogProvider } from "./contexts/DialogContext";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { LoginPage } from "./pages/Login";
+import { useEffect, useRef, useState } from "react";
 import { SplashScreen } from "./components/ui/SplashScreen";
-import { C } from "./theme/theme";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { DataProvider } from "./contexts/DataContext";
+import { DialogProvider } from "./contexts/DialogContext";
+import { SessionProvider } from "./contexts/SessionContext";
+import { SchoolERP } from "./layout/SchoolERP";
+import { LoginPage } from "./pages/Login";
 
-// [teacher-app] TEMPORARY — yahan baad me teacher ka main shell/sidebar (SchoolERP ka teacher version) aayega.
-const TeacherShellPlaceholder = () => {
-  const { user, logout } = useAuth();
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: C.text }}>
-      <div>Logged in as {user?.name} ({user?.role})</div>
-      <button className="btn btn-primary" onClick={logout}>Logout</button>
-    </div>
-  );
-};
-
+// Gatekeeper Component: Check karta hai user logged in hai ya nahi
 const MainLayout = () => {
   const { user } = useAuth();
   const [showSplash, setShowSplash] = useState(false);
@@ -38,14 +30,19 @@ const MainLayout = () => {
 
   if (!user) return <LoginPage />;
   if (showSplash) return <SplashScreen />;
-  return <TeacherShellPlaceholder />; // [teacher-app] was: <SchoolERP />
+  return <SchoolERP />;
 };
 
+// Naya Main App Export
 export default function App() {
   return (
     <DialogProvider>
       <AuthProvider>
-        <MainLayout />
+        <DataProvider>
+          <SessionProvider>
+            <MainLayout />
+          </SessionProvider>
+        </DataProvider>
       </AuthProvider>
     </DialogProvider>
   );

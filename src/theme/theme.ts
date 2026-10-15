@@ -132,3 +132,18 @@ export const injectStyles = () => {
     @keyframes logoSpinZoom{0%{transform:scale(0.82) rotate(0deg);opacity:0.75;}50%{transform:scale(1.08) rotate(180deg);opacity:1;}100%{transform:scale(0.82) rotate(360deg);opacity:0.75;}}
   `;
 };
+
+
+// ── appended from admin App.tsx (lines 358-367, 497-497) ──
+export const CHART_COLORS = [
+  C.primary,
+  "#3B82F6",
+  "#22C55E",
+  "#A855F7",
+  "#F59E0B",
+  "#06B6D4",
+  "#EF4444",
+  "#EC4899",
+];
+
+export const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap');`;
