@@ -9,6 +9,7 @@ import { Icon } from "../../components/ui/Icon";
 import { KpiCard } from "../../components/ui/KpiCard";
 import { Modal } from "../../components/ui/Modal";
 import { useDialog } from "../../contexts/DialogContext";
+import { useSession } from "../../contexts/SessionContext";
 import { C } from "../../theme/theme";
 import { todayISO } from "../../utils/date";
 
@@ -17,6 +18,7 @@ import { todayISO } from "../../utils/date";
 // ═══════════════════════════════════════════════════════════════
 export const HomeworkModule = ({ school }) => {
   const { dialogAlert, dialogConfirm } = useDialog();
+  const { currentYear } = useSession();
 
   const [homeworks, setHomeworks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export const HomeworkModule = ({ school }) => {
     try {
       const [gRes, secRes, hwRes] = await Promise.all([
         apiRequest("/setup/grades"),
-        apiRequest("/setup/sections"),
+        apiRequest(`/setup/sections${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`),
         apiRequest("/homework"),
       ]);
       setGrades(gRes?.data || []);
@@ -63,7 +65,12 @@ export const HomeworkModule = ({ school }) => {
     } finally {
       setLoading(false);
     }
-  }, [dialogAlert]);
+  }, [dialogAlert, currentYear?.id]);
+
+  // session badalne par naye session me na hone wala section hata do
+  useEffect(() => {
+    if (pickSection && !sections.some((s) => s.id === pickSection)) setPickSection("");
+  }, [sections]); // eslint-disable-line
 
   useEffect(() => { loadBase(); }, [loadBase]);
 

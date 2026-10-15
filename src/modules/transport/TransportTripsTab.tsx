@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
+import { useSession } from "../../contexts/SessionContext";
 import { FormRow } from "../../components/ui/FormRow";
 import { Modal } from "../../components/ui/Modal";
 import { useDialog } from "../../contexts/DialogContext";
@@ -20,12 +21,13 @@ export const TransportTripsTab = () => {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
 
+  const { currentYear } = useSession();
   const loadAll = async () => {
     setLoading(true);
     try {
       const [a, r, v, s] = await Promise.all([
         apiRequest("/transport/trip-assignments"),
-        apiRequest("/transport/routes"),
+        apiRequest(`/transport/routes${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`),
         apiRequest("/transport/vehicles"),
         apiRequest("/transport/staff"),
       ]);
@@ -33,7 +35,7 @@ export const TransportTripsTab = () => {
     } catch (e) { dialogAlert("Failed to load: " + e.message, "Error"); }
     finally { setLoading(false); }
   };
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); }, [currentYear?.id]); // eslint-disable-line
 
   const assignmentFor = (routeId) => assignments.find((a) => a.route_id === routeId);
   const drivers = staff.filter((s) => s.role === "driver" && s.status === "active");

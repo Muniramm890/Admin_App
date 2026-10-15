@@ -10,35 +10,15 @@ import { C } from "../../theme/theme";
 
 export const TimetableModule = () => {
   const [tab, setTab] = useState("build"); // 'build' | 'teacherview'
-  const { academicYears, currentYear } = useSession(); // 🔴 global list, no duplicate fetch
-  const [academicYearId, setAcademicYearId] = useState(""); // local override — module apna session switch kar sake
-
-  useEffect(() => {
-    if (currentYear && !academicYearId) setAcademicYearId(currentYear.id);
-  }, [currentYear]); // eslint-disable-line
+  const { currentYear } = useSession(); // 🔴 topbar ka global session hi use hota hai
+  const academicYearId = currentYear?.id || "";
 
   return (
     <div className="slide-in">
       <SectionHeader
         title="Timetable Management"
         sub="Build weekly schedules, assign teachers, and prevent double-booking automatically"
-        action={
-          academicYears.length > 0 && (
-            <select
-              className="select"
-              style={{ width: 180 }}
-              value={academicYearId}
-              onChange={(e) => setAcademicYearId(e.target.value)}
-            >
-              {academicYears.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                  {y.is_current ? " (Current)" : ""}
-                </option>
-              ))}
-            </select>
-          )
-        }
+        action={currentYear && <span className="badge">{currentYear.name}</span>}
       />
 
       <div

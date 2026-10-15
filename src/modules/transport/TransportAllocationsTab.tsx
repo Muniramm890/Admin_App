@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
+import { useSession } from "../../contexts/SessionContext";
 import { FormRow } from "../../components/ui/FormRow";
 import { Icon } from "../../components/ui/Icon";
 import { Modal } from "../../components/ui/Modal";
@@ -24,6 +25,7 @@ export const TransportAllocationsTab = () => {
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(null);
 
+  const { currentYear } = useSession();
   const load = async () => {
     setLoading(true);
     try { const res = await apiRequest("/transport/allocations"); setRows(res?.data || []); }
@@ -35,7 +37,7 @@ export const TransportAllocationsTab = () => {
   const openNew = async () => {
     setForm({}); setPreview(null); setStudentQuery(""); setModal(true);
     try {
-      const [s, r] = await Promise.all([apiRequest("/students"), apiRequest("/transport/routes")]);
+      const [s, r] = await Promise.all([apiRequest(`/students${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`), apiRequest(`/transport/routes${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`)]);
       setStudents(s?.data || s || []); setRoutes(r?.data || []);
     } catch (e) { dialogAlert("Failed to load: " + e.message, "Error"); }
   };

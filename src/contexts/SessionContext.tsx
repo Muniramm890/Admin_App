@@ -13,7 +13,15 @@ import { useAuth } from "./AuthContext";
 export const SessionProvider = ({ children }) => {
   const { user } = useAuth();
   const [academicYears, setAcademicYears] = useState([]);
-  const [academicYearId, setAcademicYearId] = useState("");
+  const SESSION_KEY = "erp_academic_year_id";
+  const [academicYearId, setAcademicYearIdState] = useState(() => {
+    try { return localStorage.getItem(SESSION_KEY) || ""; } catch { return ""; }
+  });
+  // selection ko localStorage me save karo taaki refresh par wapas current year na aaye
+  const setAcademicYearId = (val) => {
+    setAcademicYearIdState(val);
+    try { if (val) localStorage.setItem(SESSION_KEY, val); else localStorage.removeItem(SESSION_KEY); } catch {}
+  };
   const [sessionLoading, setSessionLoading] = useState(true);
 
   const loadAcademicYears = async () => {
@@ -21,10 +29,12 @@ export const SessionProvider = ({ children }) => {
       const res = await apiRequest("/setup/academic-years");
       const years = res?.data || [];
       setAcademicYears(years);
-      setAcademicYearId((prev) => {
+      setAcademicYearIdState((prev) => {
         if (prev && years.some((y) => y.id === prev)) return prev; // user ka manual selection preserve karo
         const current = years.find((y) => y.is_current) || years[0];
-        return current?.id || "";
+        const next = current?.id || "";
+        try { if (next) localStorage.setItem(SESSION_KEY, next); } catch {}
+        return next;
       });
     } catch (e) {
       console.error("Failed to load academic years:", e.message);

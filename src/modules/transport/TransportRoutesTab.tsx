@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
+import { useSession } from "../../contexts/SessionContext";
 import { FormGrid } from "../../components/ui/FormGrid";
 import { FormRow } from "../../components/ui/FormRow";
 import { Icon } from "../../components/ui/Icon";
@@ -23,13 +24,14 @@ export const TransportRoutesTab = () => {
   const [stopForm, setStopForm] = useState(null); // null | 'new' | stop-row
   const [saving, setSaving] = useState(false);
 
+  const { currentYear } = useSession();
   const loadRoutes = async () => {
     setLoading(true);
-    try { const res = await apiRequest("/transport/routes"); setRoutes(res?.data || []); }
+    try { const res = await apiRequest(`/transport/routes${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`); setRoutes(res?.data || []); }
     catch (e) { dialogAlert("Failed to load routes: " + e.message, "Error"); }
     finally { setLoading(false); }
   };
-  useEffect(() => { loadRoutes(); }, []);
+  useEffect(() => { loadRoutes(); }, [currentYear?.id]); // eslint-disable-line
 
   const openNewRoute = () => { setRouteForm({ shift: "morning" }); setRouteModal("new"); };
   const handleSaveRoute = async () => {

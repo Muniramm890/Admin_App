@@ -1,7 +1,7 @@
 // FILE: teacher-app/src/modules/exams/ExamManagementModule.tsx
 // Source: admin App.tsx -> ExamManagementModule [18337-18953]
 // @ts-nocheck
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { FormGrid } from "../../components/ui/FormGrid";
 import { FormRow } from "../../components/ui/FormRow";
@@ -47,26 +47,34 @@ export const ExamManagementModule = () => {
   const [form, setForm] = useState(blankForm());
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const loadReq = useRef(0);
   const loadAll = async () => {
+    const myReq = ++loadReq.current;
     setLoading(true);
     try {
       const [examRes, gRes, secRes] = await Promise.all([
-        apiRequest("/exams"),
+        apiRequest(`/exams${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`),
         apiRequest("/setup/grades"),
-        apiRequest("/setup/sections"),
+        apiRequest(`/setup/sections${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`),
       ]);
+      if (myReq !== loadReq.current) return; // stale response ignore
       setExams(Array.isArray(examRes?.data) ? examRes.data : []);
       setGrades(gRes?.data || []);
       setSections(secRes?.data || []);
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (myReq === loadReq.current) setLoading(false);
     }
   };
   useEffect(() => {
+    // naye session me purane session ka exam workspace/modal khula na rahe
+    setExams([]);
+    setWorkspaceExam(null);
+    setSelectedExam(null);
+    setModal(null);
     loadAll();
-  }, []);
+  }, [currentYear?.id]); // eslint-disable-line
 
   
 

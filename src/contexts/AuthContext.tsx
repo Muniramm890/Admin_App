@@ -41,6 +41,7 @@ export const AuthProvider = ({ children }) => {
       console.error("Logout API call failed:", e.message);
     }
     localStorage.removeItem("erp_token");
+    try { localStorage.removeItem("erp_academic_year_id"); } catch {}
     setUser(null);
   }, []);
 

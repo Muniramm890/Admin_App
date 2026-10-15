@@ -1,7 +1,7 @@
 // FILE: teacher-app/src/modules/timetable/BuildTimetableTab.tsx
 // Source: admin App.tsx -> BuildTimetableTab [10926-11406]
 // @ts-nocheck
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { DAYS, subjectColor } from "./helpers";
 import { useGradeSubjects } from "../../shared/subjects/useGradeSubjects";
@@ -49,7 +49,7 @@ export const BuildTimetableTab = ({ academicYearId }) => {
         try {
           const [gRes, sRes, pRes, tRes, stRes] = await Promise.all([
             apiRequest("/setup/grades"),
-            apiRequest("/setup/sections"),
+            apiRequest(`/setup/sections?academic_year_id=${academicYearId}`),
             apiRequest("/timetable/periods"),
             apiRequest("/teachers"),
             apiRequest("/teachers/subject-teachers/all"),
@@ -69,11 +69,11 @@ export const BuildTimetableTab = ({ academicYearId }) => {
           console.error(e);
         }
       })();
-    }, []);
+    }, [academicYearId]); // session badalne par sections dobara load
     
 
   useEffect(() => {
-    if (classList.length && !sectionId) {
+    if (classList.length && (!sectionId || !classList.some((c) => c.id === sectionId))) {
       setGradeId(classList[0].grade_id);
       setSectionId(classList[0].id);
     }
@@ -86,8 +86,10 @@ export const BuildTimetableTab = ({ academicYearId }) => {
     setSectionId(cls.id);
   };
 
+  const gridReq = useRef(0);
   const loadGrid = async () => {
     if (!sectionId || !academicYearId) return;
+    const myReq = ++gridReq.current;
     setLoading(true);
     setConflicts([]);
     setDirty(false);
@@ -95,6 +97,7 @@ export const BuildTimetableTab = ({ academicYearId }) => {
       const ttRes = await apiRequest(
         `/timetable/section/${sectionId}?academic_year_id=${academicYearId}`
       );
+      if (myReq !== gridReq.current) return; // stale response
       const entries = Array.isArray(ttRes?.data) ? ttRes.data : [];
       const g = {};
       entries.forEach((e) => {

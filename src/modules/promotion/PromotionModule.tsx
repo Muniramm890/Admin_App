@@ -24,8 +24,11 @@ export const PromotionModule = () => {
   const [toYearId, setToYearId] = useState("");
 
   useEffect(() => {
-    if (currentYear && !fromYearId) setFromYearId(currentYear.id);
-  }, [currentYear]); // eslint-disable-line
+    if (currentYear) {
+      setFromYearId(currentYear.id); // topbar session badalte hi sync
+      setToYearId((t) => (t === currentYear.id ? "" : t));
+    }
+  }, [currentYear?.id]); // eslint-disable-line
 
   // ── Overview state ──
   const [overview, setOverview] = useState(null);

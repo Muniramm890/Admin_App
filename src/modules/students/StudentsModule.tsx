@@ -123,11 +123,25 @@ export const StudentsModule = () => {
     setPage(1);
   }, [search, filterGrade, filterSec, filterGender, filterStatus]);
 
+  // session badalne par: page 1, section filter (section ids session-specific hain), open modal/selection reset
+  const firstYearRun = useRef(true);
+  useEffect(() => {
+    if (firstYearRun.current) { firstYearRun.current = false; return; }
+    setPage(1);
+    setFilterSec("");
+    setStudents([]);
+    setTotalStudents(0);
+    setModal(null);
+    setSelected(null);
+  }, [currentYear?.id]); // eslint-disable-line
+
   useEffect(() => {
     loadAll();
-  }, [page, search, filterGrade, filterSec, filterGender, filterStatus]);
+  }, [page, search, filterGrade, filterSec, filterGender, filterStatus, currentYear?.id]);
 
+  const loadReq = useRef(0);
   const loadAll = async () => {
+    const myReq = ++loadReq.current; // sirf latest request ka response apply hoga
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -136,6 +150,7 @@ export const StudentsModule = () => {
         search: search || "",
         grade_id: filterGrade || "",
         section_id: filterSec || "",
+        academic_year_id: currentYear?.id || "",
         gender: filterGender || "",
         sort: "roll_no",
         order: "asc",
@@ -149,10 +164,11 @@ export const StudentsModule = () => {
 
       const [gRes, secRes, stuRes] = await Promise.all([
         apiRequest("/setup/grades"),
-        apiRequest("/setup/sections"),
+        apiRequest(`/setup/sections${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`),
         apiRequest(`/students?include=guardian,enrolment&${params.toString()}`),
       ]);
 
+      if (myReq !== loadReq.current) return; // stale (purane session ka) response
       setGrades(gRes?.data || []);
       setSections(secRes?.data || []);
       setStudents(Array.isArray(stuRes?.data) ? stuRes.data : []);
@@ -170,7 +186,7 @@ export const StudentsModule = () => {
     } catch (e) {
       console.error("Load failed", e);
     } finally {
-      setLoading(false);
+      if (myReq === loadReq.current) setLoading(false);
     }
   };
 

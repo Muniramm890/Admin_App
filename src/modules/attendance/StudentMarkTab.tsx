@@ -13,7 +13,7 @@ import { STATUS_KEYS, STATUS_META } from "../../utils/status";
 // STUDENTS — TAB 1: MARK ATTENDANCE
 // ═══════════════════════════════════════════════════════════════
 export const StudentMarkTab = () => {
-  const { grades, sections } = useGradesAndSections();
+  const { grades, sections, loading: secLoading } = useGradesAndSections();
   const [gradeId, setGradeId] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -31,6 +31,14 @@ export const StudentMarkTab = () => {
   useEffect(() => {
     if (grades.length && !gradeId) setGradeId(grades[0].id);
   }, [grades]); // eslint-disable-line
+
+  // session badalne par agar selected section naye session me nahi hai to reset
+  useEffect(() => {
+    if (!secLoading && sectionId && !sections.some((s) => s.id === sectionId)) {
+      setSectionId(filteredSections[0]?.id || "");
+      if (!filteredSections.length) { setRoster([]); setCounts({ P: 0, A: 0, L: 0, OD: 0 }); }
+    }
+  }, [sections, secLoading]); // eslint-disable-line
 
   useEffect(() => {
     if (gradeId && filteredSections.length && !sectionId) {

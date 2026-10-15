@@ -12,7 +12,7 @@ import { STATUS_KEYS, STATUS_META } from "../../utils/status";
 // STUDENTS — TAB 4: INDIVIDUAL STUDENT
 // ═══════════════════════════════════════════════════════════════
 export const StudentIndividualTab = () => {
-  const { grades, sections } = useGradesAndSections();
+  const { grades, sections, loading: secLoading } = useGradesAndSections();
   const [gradeId, setGradeId] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [studentsList, setStudentsList] = useState([]);
@@ -45,6 +45,10 @@ export const StudentIndividualTab = () => {
       }
     })();
   }, [sectionId]);
+
+  useEffect(() => {
+    if (!secLoading && sectionId && !sections.some((s) => s.id === sectionId)) setSectionId("");
+  }, [sections, secLoading]); // eslint-disable-line
 
   const loadHistory = async () => {
     if (!studentId) return;

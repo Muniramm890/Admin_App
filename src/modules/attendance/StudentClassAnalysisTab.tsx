@@ -13,7 +13,7 @@ import { STATUS_META } from "../../utils/status";
 // STUDENTS — TAB 2: CLASS ANALYSIS
 // ═══════════════════════════════════════════════════════════════
 export const StudentClassAnalysisTab = () => {
-  const { grades, sections } = useGradesAndSections();
+  const { grades, sections, loading: secLoading } = useGradesAndSections();
   const [gradeId, setGradeId] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [from, setFrom] = useState(daysAgoISO(29));
@@ -26,6 +26,13 @@ export const StudentClassAnalysisTab = () => {
   useEffect(() => {
     if (grades.length && !gradeId) setGradeId(grades[0].id);
   }, [grades]); // eslint-disable-line
+  useEffect(() => {
+    if (!secLoading && sectionId && !sections.some((s) => s.id === sectionId)) {
+      setSectionId(filteredSections[0]?.id || "");
+      if (!filteredSections.length) setData({ students: [], trend: [] });
+    }
+  }, [sections, secLoading]); // eslint-disable-line
+
   useEffect(() => {
     if (gradeId && filteredSections.length && !sectionId)
       setSectionId(filteredSections[0].id);

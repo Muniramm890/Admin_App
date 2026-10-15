@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
+import { useSession } from "../../contexts/SessionContext";
 import { QuickMarksModal } from "./QuickMarksModal";
 import { ResultsClassWiseTab } from "./ResultsClassWiseTab";
 import { ResultsOverviewTab } from "./ResultsOverviewTab";
@@ -19,6 +20,7 @@ import { C } from "../../theme/theme";
 // MAIN MODULE
 // ═══════════════════════════════════════════════════════════════
 export const ResultsModule = ({ school }) => {
+  const { currentYear } = useSession();
   const [examGroups, setExamGroups] = useState([]);
   const [examGroupId, setExamGroupId] = useState("");
   const [tab, setTab] = useState("overview");
@@ -26,15 +28,20 @@ export const ResultsModule = ({ school }) => {
   const [showMarksModal, setShowMarksModal] = useState(false); // 🔴 New State
 
   useEffect(() => {
+    let cancelled = false;
+    setExamGroups([]);
     (async () => {
       try {
-        const res = await apiRequest("/results/exam-groups");
+        const res = await apiRequest(`/results/exam-groups${currentYear?.id ? `?academic_year_id=${currentYear.id}` : ""}`);
+        if (cancelled) return;
         const list = Array.isArray(res?.data) ? res.data : [];
         setExamGroups(list);
-        if (list.length) setExamGroupId((prev) => prev || list[0].id);
+        // session badalne par purana exam selection invalid ho sakta hai
+        setExamGroupId((prev) => (prev && list.some((e) => e.id === prev) ? prev : list[0]?.id || ""));
       } catch (e) { console.error(e); }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [currentYear?.id]); // eslint-disable-line
 
   const selectedExam = examGroups.find((e) => e.id === examGroupId);
 
