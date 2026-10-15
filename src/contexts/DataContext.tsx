@@ -4,7 +4,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { apiRequest } from "../api/client";
 import { useAuth } from "./AuthContext";
-import { STUDENTS, TEACHERS } from "../data/mockData";
 
   export const DataContext = createContext(); // 🔴 SMART GLOBAL DATA CONTEXT
 
@@ -14,10 +13,13 @@ import { STUDENTS, TEACHERS } from "../data/mockData";
 // 🔴 DATA PROVIDER: Fetch once from Azure, use everywhere
 export const DataProvider = ({ children }) => {
   const { user } = useAuth();
+  // [teacher-app] was: students: STUDENTS, teachers: TEACHERS (mock fallback). Ab kabhi dummy data nahi:
+  // API fail/empty ho to khali list + error message aayega, UI empty/error state dikhayega.
   const [appData, setAppData] = useState({
-    students: STUDENTS, // Fallback to global mock data so nothing breaks
-    teachers: TEACHERS,
+    students: [],
+    teachers: [],
     loading: true,
+    error: null,
   });
 
   useEffect(() => {
@@ -35,16 +37,19 @@ export const DataProvider = ({ children }) => {
         const realTeachers = teachersRes?.data || [];
 
         setAppData({
-          students: realStudents.length > 0 ? realStudents : STUDENTS,
-          teachers: realTeachers.length > 0 ? realTeachers : TEACHERS,
+          students: realStudents,
+          teachers: realTeachers,
           loading: false,
+          error: null,
         });
       } catch (err) {
-        console.warn(
-          "Using fallback Mock Data. API failed or not ready yet:",
-          err.message
-        );
-        setAppData((prev) => ({ ...prev, loading: false }));
+        console.error("Failed to load students/teachers:", err.message);
+        setAppData({
+          students: [],
+          teachers: [],
+          loading: false,
+          error: err.message || "Data load nahi ho paya",
+        });
       }
     };
 

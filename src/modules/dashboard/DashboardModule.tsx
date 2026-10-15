@@ -8,7 +8,6 @@ import { Avatar } from "../../components/ui/Avatar";
 import { Icon } from "../../components/ui/Icon";
 import { KpiCard } from "../../components/ui/KpiCard";
 import { useData } from "../../contexts/DataContext";
-import { CLASSES, CLASS_SUBJECTS, SECTIONS } from "../../data/mockData";
 import { useAutoScroll } from "../../hooks/useAutoScroll";
 import { ACTIVITY_META } from "./helpers";
 import { C } from "../../theme/theme";
@@ -18,7 +17,7 @@ import { timeAgo } from "../../utils/date";
   // MODULE: DASHBOARD
   // ═══════════════════════════════════════════════════════════════
 export const DashboardModule = ({ school }) => {
-  const { students: STUDENTS, teachers: TEACHERS } = useData(); // 🔴 Override mock data with real data
+  const { students: STUDENTS, teachers: TEACHERS, error: dataError } = useData(); // 🔴 Override mock data with real data
   const [grades, setGrades] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
@@ -104,6 +103,20 @@ export const DashboardModule = ({ school }) => {
         })();
       }, []);
 
+      // [teacher-app] Real Quick Stats (/dashboard/quick-stats) — was hardcoded "87.3%" + mock CLASSES/SECTIONS/CLASS_SUBJECTS
+      const [quickStats, setQuickStats] = useState(null);
+      useEffect(() => {
+        (async () => {
+          try {
+            const res = await apiRequest("/dashboard/quick-stats");
+            setQuickStats(res?.data || null);
+          } catch (e) {
+            console.error("Failed to load quick stats", e);
+            setQuickStats(null);
+          }
+        })();
+      }, []);
+
       // 🔴 Real 7-day attendance trend (replaces Math.random())
       const [realAttendanceTrend, setRealAttendanceTrend] = useState([]);
       useEffect(() => {
@@ -136,10 +149,7 @@ export const DashboardModule = ({ school }) => {
         name: g.name.replace("Class ", "C"),
         students: g.student_count || 0,
       }))
-    : CLASSES.map((c) => ({
-        name: c.replace("Class ", "C"),
-        students: 0,
-      })); 
+    : []; // [teacher-app] was: CLASSES.map(...) mock fallback — ab khali (grades load nahi hue / setup nahi hua)
       
       // fallback empty shape while grades are loading / not set up yet
       const feeByClass = (feeOverview?.byClass || []).slice(0, 8).map((c) => ({
@@ -159,6 +169,22 @@ export const DashboardModule = ({ school }) => {
 
   return (
     <div className="slide-in">
+      {/* [teacher-app] data load fail hone par dummy data ki jagah error dikhao */}
+      {dataError && (
+        <div
+          style={{
+            background: `${C.red}18`,
+            border: `1px solid ${C.red}55`,
+            color: C.red,
+            borderRadius: 12,
+            padding: "10px 14px",
+            marginBottom: 16,
+            fontSize: 13,
+          }}
+        >
+          ⚠️ Students/Teachers ka data load nahi ho paya ({dataError}). Dashboard ke count adhure ho sakte hain — page refresh karke dekhein.
+        </div>
+      )}
       <div
         style={{
           background: `linear-gradient(135deg,${C.surface},${C.surfaceAlt})`,
@@ -218,7 +244,7 @@ export const DashboardModule = ({ school }) => {
         <KpiCard
           label="Total Students"
           value={totalStudents}
-          sub={`Across ${CLASSES.length} classes`}
+          sub={`Across ${quickStats?.total_classes ?? grades.length} classes`}
           icon="students"
           color={C.blue}
           trend={kpiTrends?.students}
@@ -515,23 +541,28 @@ export const DashboardModule = ({ school }) => {
             Quick Stats
           </h3>
           {[
-            { label: "Avg Attendance", value: "87.3%", color: C.green },
+            {
+              label: "Avg Attendance",
+              value:
+                quickStats?.avg_attendance_last_month != null
+                  ? `${quickStats.avg_attendance_last_month}%`
+                  : "—",
+              color: C.green,
+            },
             {
               label: "Pending Fees",
               value: `₹${(totalFeePending / 100000).toFixed(1)}L`,
               color: C.red,
             },
-            { label: "Classes Running", value: CLASSES.length, color: C.blue },
+            { label: "Classes Running", value: quickStats?.total_classes ?? "—", color: C.blue },
             {
               label: "Total Sections",
-              value: Object.values(SECTIONS).flat().length,
+              value: quickStats?.total_sections ?? "—",
               color: C.purple,
             },
             {
               label: "Subjects Taught",
-              value: Object.values(CLASS_SUBJECTS)
-                .flat()
-                .filter((v, i, a) => a.indexOf(v) === i).length,
+              value: quickStats?.total_subjects ?? "—",
               color: C.cyan,
             },
           ].map((s, i) => (

@@ -3,11 +3,12 @@
 // @ts-nocheck
 
 export const SCHOOL_CONFIG = {
-  name: "Sunrise Public School",
-  tagline: "Illuminating Futures Since 1998",
-  address: "12, Knowledge Park, Sector 62, Noida",
-  phone: "+91 98765 43210",
-  email: "info@sunriseschool.edu",
+  // [teacher-app] fake school details hataye (API /setup/school se real data aata hai)
+  name: "",
+  tagline: "",
+  address: "",
+  phone: "",
+  email: "",
   logo: "🌅",
   color: "#E8600A",
   colorLight: "#FFF3EC",
