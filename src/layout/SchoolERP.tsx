@@ -311,10 +311,10 @@ export const SchoolERP = () => {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 0,
                 background: C.surfaceAlt,
-                borderRadius: 10,
-                padding: "6px 12px",
+                borderRadius: "50%",
+                padding: 3,
                 cursor: "pointer",
                 transition: "background 0.15s",
               }}
@@ -325,13 +325,13 @@ export const SchoolERP = () => {
                 <img
                   src={user.avatarUrl}
                   alt=""
-                  style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
+                  style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }}
                 />
               ) : (
                 <div
                   style={{
-                    width: 28,
-                    height: 28,
+                    width: 32,
+                    height: 32,
                     borderRadius: "50%",
                     background: C.primary,
                     color: "#fff",
@@ -345,15 +345,7 @@ export const SchoolERP = () => {
                   {(user?.name || "U").trim().charAt(0).toUpperCase()}
                 </div>
               )}
-              <div className="hide-mobile">
-                {/* [teacher-app] was: line1 = role, line2 = school.name.split(" ")[0] → ab line1 = first name, line2 = role */}
-                <div style={{ fontSize: 12, fontWeight: 600 }}>
-                  {(user?.name || "User").trim().split(" ")[0]}
-                </div>
-                <div style={{ fontSize: 10, color: C.textMuted, textTransform: "capitalize" }}>
-                  {(user?.role || "User").replace(/_/g, " ")}
-                </div>
-              </div>
+              {/* [teacher-app] name + role text hataya: sirf profile circle; click par ProfileModal me full detail */}
             </div>
             <button
               className="btn btn-ghost"
@@ -366,9 +358,10 @@ export const SchoolERP = () => {
             <button
               className="btn btn-danger"
               onClick={logout}
-              style={{ padding: "6px 12px", fontSize: 12, marginLeft: 8 }}
+              title="Logout"
+              style={{ padding: "7px 9px", marginLeft: 4 }}
             >
-              Logout
+              <Icon name="logout" size={16} />
             </button>
           </div>
         </div>
