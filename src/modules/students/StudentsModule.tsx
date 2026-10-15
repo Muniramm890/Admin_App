@@ -58,10 +58,19 @@ export const StudentsModule = () => {
   const [activeTab, setActiveTab] = useState("personal");
   const [selected, setSelected] = useState(null);
 
-  // Bulk import
+  // Bulk import (v2: classes/sections auto-create + legacy dues, server-side preview)
   const [bulkRows, setBulkRows] = useState([]);
-  const [bulkErrors, setBulkErrors] = useState([]);
-  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkPreview, setBulkPreview] = useState(null); // { academic_year, summary, rows, available_classes }
+  const [bulkChecking, setBulkChecking] = useState(false);
+  const [bulkParseError, setBulkParseError] = useState("");
+  const [bulkProgress, setBulkProgress] = useState(null);
+  const [bulkDone, setBulkDone] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
+  const [bulkFilter, setBulkFilter] = useState("all"); // all | needs | errors
+  const [bulkFileName, setBulkFileName] = useState("");
+  const bulkRowsRef = useRef([]);
+  const bulkTimerRef = useRef(null);
+  const bulkReqRef = useRef(0);
   const fileRef = useRef(null);
 
   // ── Blank Form ─────────────────────────────────────────────
@@ -306,69 +315,133 @@ export const StudentsModule = () => {
     }
   };
 
-  // ── Bulk CSV Import (unchanged logic) ───────────────────────
-  const CSV_COLS = [
-    "admission_no",
-    "student_full_name",
-    "gender",
-    "date_of_birth",
-    "class_name",
-    "section_name",
-    "roll_no",
-    "guardian_name",
-    "guardian_phone",
-    "guardian_relation",
-    "guardian_email",
-    "address_city",
-    "address_pincode",
+  // ── Bulk CSV Import v2: auto classes/sections + legacy dues ──────────────
+  // Flow: upload CSV → POST /students/bulk-import {dryRun:true} (nothing is saved)
+  //       → admin fixes class / section / DOB where flagged → POST {dryRun:false} in chunks.
+  const STU_COLS = [
+    "admission_no", "first_name", "middle_name", "last_name", "gender", "date_of_birth", "admission_date",
+    "class_name", "section_name", "roll_no",
+    "blood_group", "nationality", "religion", "caste", "sub_caste", "is_ews", "aadhaar_no",
+    "previous_school", "tc_no", "address_permanent", "address_current", "city", "state", "pincode",
+    "medical_conditions", "disabilities",
+    "guardian_name", "guardian_relation", "guardian_phone", "guardian_email",
+    "guardian2_name", "guardian2_relation", "guardian2_phone", "guardian2_email",
+    "legacy_due", "legacy_due_remark", "extra_fee_title", "extra_fee_amount",
   ];
+  const STU_ACCEPTED = [...STU_COLS, "full_name"];
+  const STU_ALIASES = {
+    student_full_name: "full_name", student_name: "full_name", name: "full_name", fullname: "full_name",
+    address_city: "city", address_pincode: "pincode", pin: "pincode", pin_code: "pincode",
+    dob: "date_of_birth", birth_date: "date_of_birth", class: "class_name", grade: "class_name",
+    section: "section_name", roll: "roll_no", roll_number: "roll_no",
+    admission_number: "admission_no", adm_no: "admission_no", admission_date_: "admission_date",
+    guardian_mobile: "guardian_phone", parent_name: "guardian_name", parent_phone: "guardian_phone",
+    previous_due: "legacy_due", previous_dues: "legacy_due", arrears: "legacy_due", pending_due: "legacy_due",
+    old_due: "legacy_due", extra_charge_title: "extra_fee_title", extra_charge_amount: "extra_fee_amount",
+  };
+  const BULK_CHUNK = 25;
+  const BULK_MAX_ROWS = 2000;
+  const NEEDS_LABEL = { class: "Class", section: "Section", dob: "Date of birth" };
+  const inr = (paise) => "₹" + ((paise || 0) / 100).toLocaleString("en-IN", { minimumFractionDigits: (paise || 0) % 100 ? 2 : 0, maximumFractionDigits: 2 });
 
-  const parseCsv = (text) => {
-    const lines = text.trim().split("\n");
-    if (!lines.length) return [];
-    const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-    return lines
-      .slice(1)
-      .map((line, i) => {
-        const vals = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
-        const row = {};
-        CSV_COLS.forEach((col, ci) => {
-          const hi = header.indexOf(col);
-          row[col] = hi >= 0 ? vals[hi] : vals[ci] || "";
-        });
-        row._line = i + 2;
+  // RFC-4180 style CSV parser (quotes, commas/newlines inside quotes, BOM, \r\n)
+  const parseCsvText = (text) => {
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+    const table = [];
+    let row = [];
+    let cur = "";
+    let inQ = false;
+    const pushRow = () => {
+      row.push(cur);
+      cur = "";
+      if (row.some((c) => c.trim() !== "")) table.push(row);
+      row = [];
+    };
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (inQ) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') { cur += '"'; i++; }
+          else inQ = false;
+        } else cur += ch;
+      } else if (ch === '"') inQ = true;
+      else if (ch === ",") { row.push(cur); cur = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        pushRow();
+      } else cur += ch;
+    }
+    if (cur !== "" || row.length) pushRow();
+    return table;
+  };
 
-        const nameParts = (row.student_full_name || "").trim().split(/\s+/);
-        row._first_name = nameParts[0] || "";
-        row._last_name =
-          nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
-        row._middle_name =
-          nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : "";
+  const parseBulkFile = (text) => {
+    const table = parseCsvText(text);
+    if (table.length < 2) return { error: "The file has no data rows." };
+    const header = table[0].map((h) => {
+      const k = h.trim().toLowerCase().replace(/[\s\-]+/g, "_");
+      return STU_ALIASES[k] || k;
+    });
+    if (!header.includes("first_name") && !header.includes("full_name")) {
+      return { error: "Header row must contain first_name (or student_full_name). Download the template to see all columns." };
+    }
+    if (table.length - 1 > BULK_MAX_ROWS) {
+      return { error: `Too many rows (max ${BULK_MAX_ROWS} per file). Split the file and import in parts.` };
+    }
+    const rows = table.slice(1).map((vals, i) => {
+      const r = { line: i + 2 };
+      header.forEach((h, ci) => {
+        if (STU_ACCEPTED.includes(h)) r[h] = (vals[ci] ?? "").trim();
+      });
+      return r;
+    });
+    return { rows };
+  };
 
-        const g = grades.find(
-          (gr) => gr.name.toLowerCase() === (row.class_name || "").toLowerCase()
-        );
-        row._grade_id = g?.id || null;
-        const sec = sections.find(
-          (s) =>
-            s.grade_id === row._grade_id &&
-            s.name.toLowerCase() === (row.section_name || "").toLowerCase()
-        );
-        row._section_id = sec?.id || null;
+  const csvCell = (v) => {
+    const t = v === undefined || v === null ? "" : String(v);
+    return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const downloadCsv = (filename, lines) => {
+    const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
-        row._errors = [];
-        if (!row._first_name) row._errors.push("Student name required");
-        if (!row.date_of_birth) row._errors.push("DOB required");
-        if (!row.gender) row._errors.push("Gender required");
-        if (!row.guardian_name) row._errors.push("Guardian name required");
-        if (!row.guardian_phone) row._errors.push("Guardian phone required");
-        if (row.class_name && !row._grade_id)
-          row._errors.push(`Class "${row.class_name}" not found`);
-        if (row.section_name && row._grade_id && !row._section_id)
-          row._errors.push(`Section "${row.section_name}" not in class`);
-        return row;
-      })
-      .filter((r) => r._first_name || r.admission_no);
+  const resetBulk = () => {
+    clearTimeout(bulkTimerRef.current);
+    bulkReqRef.current += 1;
+    bulkRowsRef.current = [];
+    setBulkRows([]);
+    setBulkPreview(null);
+    setBulkChecking(false);
+    setBulkParseError("");
+    setBulkProgress(null);
+    setBulkDone(false);
+    setBulkResult(null);
+    setBulkFilter("all");
+    setBulkFileName("");
+  };
+
+  // Server dry-run. Latest request wins (older responses are ignored).
+  const runBulkPreview = async (rows) => {
+    const reqId = ++bulkReqRef.current;
+    setBulkChecking(true);
+    setBulkParseError("");
+    try {
+      const res = await apiRequest("/students/bulk-import", "POST", { dryRun: true, rows });
+      if (reqId === bulkReqRef.current) setBulkPreview(res.data);
+    } catch (e) {
+      if (reqId === bulkReqRef.current) setBulkParseError("Could not validate the file: " + e.message);
+    } finally {
+      if (reqId === bulkReqRef.current) setBulkChecking(false);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -376,137 +449,129 @@ export const StudentsModule = () => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const rows = parseCsv(ev.target.result);
-      setBulkRows(rows);
-      setBulkErrors(rows.filter((r) => r._errors.length > 0));
+      const parsed = parseBulkFile(String(ev.target.result || ""));
+      setBulkProgress(null);
+      setBulkDone(false);
+      setBulkResult(null);
+      setBulkPreview(null);
+      setBulkFilter("all");
+      setBulkFileName(file.name);
+      if (parsed.error) {
+        bulkRowsRef.current = [];
+        setBulkRows([]);
+        setBulkParseError(parsed.error);
+        return;
+      }
+      bulkRowsRef.current = parsed.rows;
+      setBulkRows(parsed.rows);
+      runBulkPreview(parsed.rows);
     };
     reader.readAsText(file);
+    e.target.value = ""; // allow re-selecting the same file
   };
 
+  // ── fixing flagged rows inside the preview (re-validates on the server) ──
+  const applyRowsChange = (next) => {
+    bulkRowsRef.current = next;
+    setBulkRows(next);
+    clearTimeout(bulkTimerRef.current);
+    bulkTimerRef.current = setTimeout(() => runBulkPreview(next), 350);
+  };
+  const setRowField = (idx, field, value) =>
+    applyRowsChange(bulkRowsRef.current.map((r, i) => (i === idx ? { ...r, [field]: String(value || "").trim() } : r)));
+  const applyClassToAll = (name) => {
+    const n = String(name || "").trim();
+    if (!n) return;
+    applyRowsChange(bulkRowsRef.current.map((r) => (String(r.class_name || "").trim() ? r : { ...r, class_name: n })));
+  };
+
+  // ── commit (server re-validates everything; one DB transaction per student) ──
   const handleBulkImport = async () => {
-    const valid = bulkRows.filter((r) => r._errors.length === 0);
-    if (!valid.length) {
-      alert("No valid rows to import.");
-      return;
-    }
-    setBulkLoading(true);
-    let success = 0,
-      fail = 0;
-    let failedRows = [];
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    if (!bulkPreview || bulkChecking) return;
+    const rows = bulkRowsRef.current;
+    const okIdx = bulkPreview.rows.filter((r) => r.status === "ok" || r.status === "warning").map((r) => r.idx);
+    if (!okIdx.length) { alert("No rows are ready to import."); return; }
+    const skipped = bulkPreview.rows
+      .filter((r) => r.status === "error" || r.status === "needs_input")
+      .map((r) => ({
+        ...rows[r.idx],
+        _err: r.status === "error" ? r.errors.join("; ") : "Needs input: " + r.needs.map((n) => NEEDS_LABEL[n]).join(", "),
+      }));
 
-    for (let i = 0; i < valid.length; i++) {
-      const row = valid[i];
+    setBulkProgress({ done: 0, total: okIdx.length, failed: [] });
+    setBulkDone(false);
+    const failed = [];
+    const classes = new Set();
+    const sections = new Set();
+    let imported = 0, invoices = 0, legacy = 0, extra = 0;
+
+    for (let st = 0; st < okIdx.length; st += BULK_CHUNK) {
+      const slice = okIdx.slice(st, st + BULK_CHUNK);
+      let abort = false;
       try {
-        await apiRequest("/students", "POST", {
-          admission_no:
-            row.admission_no ||
-            `ADM-${Date.now().toString().slice(-5)}${Math.floor(
-              Math.random() * 100
-            )}-${success}`,
-          first_name: row._first_name || "Unknown",
-          middle_name: row._middle_name || "",
-          last_name: row._last_name || "",
-          gender: row.gender || "Male",
-          date_of_birth: row.date_of_birth,
-          admission_date: new Date().toISOString().split("T")[0],
-          city: row.address_city || "",
-          pincode: row.address_pincode || "",
-          is_active: true,
-          enrolment: row._grade_id
-            ? {
-                grade_id: row._grade_id,
-                section_id: row._section_id,
-                academic_year_id: currentYear?.id,
-                roll_no: row.roll_no || "",
-              }
-            : null,
-          guardians: [
-            {
-              relation: row.guardian_relation || "Parent",
-              full_name: row.guardian_name || "Unknown Guardian",
-              phone: row.guardian_phone || "",
-              email: row.guardian_email || "",
-              is_primary: true,
-            },
-          ],
+        const res = await apiRequest("/students/bulk-import", "POST", {
+          dryRun: false,
+          rows: slice.map((i) => rows[i]),
         });
-        success++;
-      } catch (err) {
-        fail++;
-        const backendError =
-          err?.response?.data?.error ||
-          err?.response?.data?.message ||
-          err.message ||
-          "Database execution failed";
-        row.Backend_Error = backendError;
-        row._errors = [`Backend Error: ${backendError}`];
-        failedRows.push(row);
+        const d = res.data;
+        imported += d.summary.imported;
+        invoices += d.summary.invoices;
+        legacy += d.summary.legacy_paise;
+        extra += d.summary.extra_paise;
+        d.summary.classes_created.forEach((n) => classes.add(n));
+        d.summary.sections_created.forEach((n) => sections.add(n));
+        d.results.forEach((r) => {
+          if (!r.ok) failed.push({ ...rows[slice[r.idx]], _err: r.error });
+        });
+      } catch (e) {
+        slice.forEach((i) => failed.push({ ...rows[i], _err: e.message }));
+        if (String(e.message).includes("Session expired")) abort = true;
       }
-      if ((i + 1) % 10 === 0) await sleep(1000);
+      setBulkProgress({ done: Math.min(st + BULK_CHUNK, okIdx.length), total: okIdx.length, failed: [...failed] });
+      if (abort) break;
     }
 
-    setBulkLoading(false);
-    await loadAll();
-
-    if (fail > 0) {
-      setBulkRows(failedRows);
-      setBulkErrors(failedRows);
-      alert(
-        `⚠️ ${success} Imported, ${fail} Failed.\nDownloading Failed Students CSV...`
-      );
-      downloadFailedCSV(failedRows);
-    } else {
-      alert(`🎉 All ${success} Students Imported Successfully!`);
-      setModal(null);
-      setBulkRows([]);
-    }
+    setBulkResult({
+      total: rows.length, imported, invoices, legacy, extra,
+      classes: [...classes], sections: [...sections], skipped, failed,
+    });
+    setBulkDone(true);
+    await loadAll(); // refresh students + newly created classes / sections
   };
 
   const downloadFailedCSV = (failedRows) => {
     if (!failedRows || failedRows.length === 0) return;
-    const sampleRow = failedRows[0];
-    const headers = Object.keys(sampleRow).filter((k) => !k.startsWith("_"));
-    if (!headers.includes("Backend_Error")) headers.push("Backend_Error");
-    let csvContent = headers.join(",") + "\n";
-    failedRows.forEach((row) => {
-      const rowData = headers.map((header) => {
-        let val = row[header] == null ? "" : String(row[header]);
-        val = val.replace(/"/g, '""');
-        if (val.search(/("|,|\n)/g) >= 0) val = `"${val}"`;
-        return val;
-      });
-      csvContent += rowData.join(",") + "\n";
-    });
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `Failed_Students_Import_${new Date().getTime()}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const cols = failedRows.some((r) => r.full_name) ? [...STU_COLS, "full_name"] : STU_COLS;
+    downloadCsv("failed_students_import.csv", [
+      [...cols, "error_reason"].join(","),
+      ...failedRows.map((r) => [...cols.map((c) => csvCell(r[c])), csvCell(r._err)].join(",")),
+    ]);
   };
 
   const downloadSample = () => {
-    const sample = [
-      CSV_COLS.join(","),
-      `ADM001,Rahul Kumar Sharma,Male,2012-06-15,${
-        grades[0]?.name || "Class 7"
-      },${
-        filteredSections(grades[0]?.id)[0]?.name || "A"
-      },101,Suresh Sharma,9876543210,Father,suresh@email.com,Jaipur,302001`,
-      `ADM002,Priya Gupta,Female,2011-03-20,${grades[0]?.name || "Class 7"},${
-        filteredSections(grades[0]?.id)[0]?.name || "A"
-      },102,Meena Gupta,9812345678,Mother,,Delhi,110001`,
-    ].join("\n");
-    const a = document.createElement("a");
-    a.href = "data:text/csv," + encodeURIComponent(sample);
-    a.download = "school_bulk_students_template.csv";
-    a.click();
+    const mk = (o) => STU_COLS.map((c) => csvCell(o[c])).join(",");
+    downloadCsv("students_import_template.csv", [
+      STU_COLS.join(","),
+      mk({
+        admission_no: "ADM-1001", first_name: "Rahul", middle_name: "Kumar", last_name: "Sharma", gender: "Male",
+        date_of_birth: "2014-06-15", admission_date: "2021-04-01", class_name: "Class 5", section_name: "A",
+        roll_no: "1", blood_group: "B+", nationality: "Indian", religion: "Hindu", caste: "General",
+        is_ews: "no", aadhaar_no: "123412341234", previous_school: "Sunrise Public School",
+        address_permanent: "12 Gandhi Nagar, Jaipur", city: "Jaipur", state: "Rajasthan", pincode: "302001",
+        guardian_name: "Suresh Sharma", guardian_relation: "Father", guardian_phone: "9876543210",
+        guardian_email: "suresh@email.com", guardian2_name: "Meena Sharma", guardian2_relation: "Mother",
+        guardian2_phone: "9812345678", legacy_due: "4500", legacy_due_remark: "2024-25 pending",
+        extra_fee_title: "Uniform", extra_fee_amount: "800",
+      }),
+      mk({
+        first_name: "Priya", last_name: "Gupta", gender: "Female", date_of_birth: "15/03/2013",
+        class_name: "Class 5", guardian_name: "Meena Gupta", guardian_relation: "Mother", guardian_phone: "9812345678",
+      }),
+      mk({
+        first_name: "Aarav", last_name: "Verma", gender: "Male", date_of_birth: "2022-01-20",
+        class_name: "Nursery", guardian_name: "Anil Verma", guardian_phone: "9700000001",
+      }),
+    ]);
   };
 
   const totalActive = students.filter((s) => s.is_active).length;
@@ -998,8 +1063,7 @@ export const StudentsModule = () => {
             <button
               className="btn btn-ghost"
               onClick={() => {
-                setBulkRows([]);
-                setBulkErrors([]);
+                resetBulk();
                 setModal("bulk");
               }}
               style={{
@@ -1937,237 +2001,362 @@ export const StudentsModule = () => {
         }}
       />
 
-      {/* ════════ MODAL: BULK IMPORT ════════ */}
+      {/* ════════ MODAL: BULK IMPORT (v2 — classes, sections, legacy dues) ════════ */}
       <Modal
         open={modal === "bulk"}
-        onClose={() => setModal(null)}
-        title="Bulk CSV Import — Data Migration"
-        width={750}
+        onClose={() => { if (!(bulkProgress && !bulkDone)) setModal(null); }}
+        title="Bulk Import — Students, Classes & Opening Dues"
+        width={1180}
       >
         <div>
-          <div
-            style={{
-              padding: "12px 14px",
-              background: `${C.blue}11`,
-              border: `1px solid ${C.blue}22`,
-              borderRadius: 10,
-              marginBottom: 16,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: C.blue,
-                marginBottom: 6,
-              }}
-            >
-              CSV Column Order:
+          {/* ── help ── */}
+          <div style={{ padding: "10px 14px", background: `${C.blue}11`, border: `1px solid ${C.blue}22`, borderRadius: 10, marginBottom: 14 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: C.blue, marginBottom: 6 }}>
+              One file creates students + their class & section + guardians + opening dues
             </div>
-            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {CSV_COLS.map((c, i) => (
-                <span
-                  key={c}
-                  style={{
-                    fontSize: 11,
-                    fontFamily: "monospace",
-                    background: `${C.blue}22`,
-                    color: C.blue,
-                    padding: "2px 7px",
-                    borderRadius: 4,
-                  }}
-                >
-                  {i + 1}. {c}
-                </span>
-              ))}
-            </div>
-            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 8 }}>
-              • Class & Section names must exactly match your setup
-              (case-insensitive)
-              <br />• date_of_birth format: YYYY-MM-DD&nbsp;&nbsp;• Header row
-              required
+            {[
+              ["Required", ["first_name", "class_name", "date_of_birth"]],
+              ["Class", ["class_name", "section_name", "roll_no"]],
+              ["Profile", ["admission_no", "middle_name", "last_name", "gender", "admission_date", "blood_group", "nationality", "religion", "caste", "sub_caste", "is_ews", "aadhaar_no", "previous_school", "tc_no", "address_permanent", "address_current", "city", "state", "pincode", "medical_conditions", "disabilities"]],
+              ["Guardians", ["guardian_name", "guardian_relation", "guardian_phone", "guardian_email", "guardian2_name", "guardian2_relation", "guardian2_phone", "guardian2_email"]],
+              ["Dues (₹)", ["legacy_due", "legacy_due_remark", "extra_fee_title", "extra_fee_amount"]],
+            ].map(([label, cols]) => (
+              <div key={label} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: C.textMuted, width: 70 }}>{label}</span>
+                {cols.map((c) => (
+                  <span key={c} style={{ fontSize: 10.5, fontFamily: "monospace", background: `${label === "Required" ? C.red : C.blue}22`, color: label === "Required" ? C.red : C.blue, padding: "1px 7px", borderRadius: 4 }}>{c}</span>
+                ))}
+              </div>
+            ))}
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 6, lineHeight: 1.6 }}>
+              • Classes and sections that don't exist are <b>created automatically</b> in the current academic year (Nursery → LKG → UKG → 1–12, anything else last).<br />
+              • <b>Section blank:</b> class has no section → "A" · class has exactly one section → that one · class has several → you choose in the preview.<br />
+              • <b>Class</b> or <b>date of birth</b> missing → row is flagged and is <b>not imported</b> until you pick it in the preview.<br />
+              • <b>legacy_due</b> becomes a “Previous Dues” amount that shows up in Fees → Collect and on the receipt. No late fee is added. Regular fee invoices are <b>not</b> created here.<br />
+              • Everything else may be left blank. Blank admission_no / roll_no are generated automatically. Dates: YYYY-MM-DD or DD/MM/YYYY.
             </div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              marginBottom: 16,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            <button
-              className="btn btn-ghost"
-              onClick={downloadSample}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12.5,
-              }}
-            >
+          {/* ── actions ── */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+            <button className="btn btn-ghost" onClick={downloadSample} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>
               <Icon name="download" size={13} /> Download Template CSV
             </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv"
-              onChange={handleFileChange}
-              style={{ display: "none" }}
-            />
+            <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFileChange} style={{ display: "none" }} />
             <button
               className="btn btn-primary"
+              disabled={!!bulkProgress && !bulkDone}
               onClick={() => fileRef.current?.click()}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12.5,
-              }}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}
             >
-              <Icon name="plus" size={13} /> Upload CSV File
+              <Icon name="plus" size={13} /> {bulkFileName ? "Upload another file" : "Upload CSV File"}
             </button>
+            {bulkFileName && <span style={{ fontSize: 12, color: C.textMuted }}>{bulkFileName}</span>}
+            {bulkPreview && !bulkProgress && !bulkResult && (
+              <button
+                className="btn btn-primary"
+                disabled={bulkChecking || bulkPreview.summary.ready === 0}
+                onClick={handleBulkImport}
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, background: C.green, marginLeft: "auto" }}
+              >
+                <Icon name="check" size={13} /> Import {bulkPreview.summary.ready} students
+              </button>
+            )}
           </div>
 
-          {bulkRows.length > 0 && (
+          {bulkParseError && (
+            <div style={{ padding: "10px 14px", background: `${C.red}11`, border: `1px solid ${C.red}33`, borderRadius: 8, fontSize: 12.5, color: C.red, marginBottom: 12 }}>
+              ⚠ {bulkParseError}
+            </div>
+          )}
+
+          {bulkChecking && !bulkProgress && (
+            <div style={{ fontSize: 12.5, color: C.textMuted, marginBottom: 10 }}>⏳ Checking file against your classes, sections, admission numbers and fee setup…</div>
+          )}
+
+          {/* ── import progress ── */}
+          {bulkProgress && !bulkDone && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>
+                  Importing: {bulkProgress.done} / {bulkProgress.total}
+                  {bulkProgress.failed.length > 0 && <span style={{ color: C.red }}> ({bulkProgress.failed.length} failed)</span>}
+                </span>
+                <span style={{ fontSize: 12, color: C.primary, fontWeight: 600 }}>
+                  {Math.round((bulkProgress.done / bulkProgress.total) * 100)}%
+                </span>
+              </div>
+              <div className="progress-bar" style={{ height: 8 }}>
+                <div className="progress-fill" style={{ width: `${Math.round((bulkProgress.done / bulkProgress.total) * 100)}%`, background: C.primary }} />
+              </div>
+              <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 8 }}>Please keep this window open until the import finishes.</div>
+            </div>
+          )}
+
+          {/* ── final result ── */}
+          {bulkResult && (
             <div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 10,
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600 }}>
-                  Preview:{" "}
-                  <span style={{ color: C.green }}>
-                    {bulkRows.filter((r) => r._errors.length === 0).length}{" "}
-                    valid
-                  </span>
-                  {bulkErrors.length > 0 && (
-                    <span style={{ color: C.red }}>
-                      , {bulkErrors.length} with errors
-                    </span>
+              <div style={{ padding: "12px 14px", background: `${bulkResult.imported > 0 ? C.green : C.red}11`, border: `1px solid ${bulkResult.imported > 0 ? C.green : C.red}33`, borderRadius: 10, marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: bulkResult.imported > 0 ? C.green : C.red }}>
+                  ✓ {bulkResult.imported} of {bulkResult.total} students imported
+                </div>
+                <div style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.7 }}>
+                  {bulkResult.classes.length > 0 && <div>• New classes created: <b>{bulkResult.classes.join(", ")}</b></div>}
+                  {bulkResult.sections.length > 0 && <div>• New sections created: <b>{bulkResult.sections.join(", ")}</b></div>}
+                  {bulkResult.invoices > 0 && (
+                    <div>
+                      • Opening dues added for <b>{bulkResult.invoices}</b> students — Previous Dues <b>{inr(bulkResult.legacy)}</b>
+                      {bulkResult.extra > 0 && <> · extra charges <b>{inr(bulkResult.extra)}</b></>} (visible in Fees → Collect)
+                    </div>
+                  )}
+                  {bulkResult.skipped.length + bulkResult.failed.length > 0 && (
+                    <div style={{ color: C.red }}>• {bulkResult.skipped.length + bulkResult.failed.length} rows were not imported (see below)</div>
                   )}
                 </div>
-                <div style={{ fontSize: 11, color: C.textMuted }}>
-                  {bulkRows.length} total rows
-                </div>
               </div>
-              <div
-                style={{
-                  overflowX: "auto",
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 10,
-                }}
-              >
-                <table className="table" style={{ fontSize: 11 }}>
-                  <thead>
-                    <tr>
-                      <th>Line</th>
-                      <th>Name</th>
-                      <th>Adm#</th>
-                      <th>DOB</th>
-                      <th>Class</th>
-                      <th>Section</th>
-                      <th>Guardian</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bulkRows.map((row, i) => (
-                      <tr
-                        key={i}
-                        style={{
-                          background: row._errors.length
-                            ? `${C.red}08`
-                            : "transparent",
-                        }}
-                      >
-                        <td style={{ color: C.textMuted }}>{row._line}</td>
-                        <td style={{ fontWeight: 600 }}>
-                          {[row.first_name, row.middle_name, row.last_name]
-                            .filter(Boolean)
-                            .join(" ")}
-                        </td>
-                        <td style={{ fontFamily: "monospace" }}>
-                          {row.admission_no || "—"}
-                        </td>
-                        <td>{row.date_of_birth || "—"}</td>
-                        <td>{row.class_name || "—"}</td>
-                        <td>{row.section_name || "—"}</td>
-                        <td>{row.guardian_name || "—"}</td>
-                        <td>
-                          {row._errors.length === 0 ? (
-                            <span
-                              className="badge badge-green"
-                              style={{ fontSize: 10 }}
-                            >
-                              ✓ Valid
-                            </span>
-                          ) : (
-                            <span
-                              title={row._errors.join(", ")}
-                              className="badge badge-red"
-                              style={{ fontSize: 10, cursor: "help" }}
-                            >
-                              ⚠ {row._errors[0]}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
+              {bulkResult.skipped.length + bulkResult.failed.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, color: C.red, fontWeight: 700 }}>⚠ Not imported</span>
+                    <button className="btn btn-danger" onClick={() => downloadFailedCSV([...bulkResult.skipped, ...bulkResult.failed])} style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
+                      <Icon name="download" size={12} /> Download Failed CSV
+                    </button>
+                  </div>
+                  <div style={{ maxHeight: 180, overflowY: "auto", border: `1px solid ${C.red}33`, borderRadius: 8 }}>
+                    {[...bulkResult.skipped, ...bulkResult.failed].map((r, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "6px 10px", borderBottom: `1px solid ${C.border}22`, fontSize: 12 }}>
+                        <span style={{ fontWeight: 600 }}>Row {r.line}: {r.first_name || r.full_name} {r.last_name || ""}</span>
+                        <span style={{ color: C.red, fontSize: 11, textAlign: "right" }}>{r._err}</span>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  marginTop: 16,
-                  justifyContent: "flex-end",
-                }}
-              >
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => setBulkRows([])}
-                >
-                  Clear
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleBulkImport}
-                  disabled={
-                    bulkLoading ||
-                    bulkRows.filter((r) => r._errors.length === 0).length === 0
-                  }
-                  style={{ minWidth: 160, opacity: bulkLoading ? 0.7 : 1 }}
-                >
-                  {bulkLoading
-                    ? "Importing…"
-                    : `Import ${
-                        bulkRows.filter((r) => r._errors.length === 0).length
-                      } Students`}
-                </button>
+                  </div>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button className="btn btn-ghost" onClick={resetBulk}>Import another file</button>
+                <button className="btn btn-primary" onClick={() => setModal(null)}>Close</button>
               </div>
             </div>
           )}
 
-          {bulkRows.length === 0 && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "30px 0",
-                color: C.textMuted,
-                fontSize: 13,
-              }}
-            >
-              Upload a CSV file to preview students before importing.
+          {/* ── preview ── */}
+          {bulkPreview && !bulkProgress && !bulkResult && (() => {
+            const S = bulkPreview.summary;
+            const classes = bulkPreview.available_classes || [];
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const shown = bulkPreview.rows.filter((r) =>
+              bulkFilter === "errors" ? r.status === "error"
+                : bulkFilter === "needs" ? r.status === "needs_input" || r.status === "error"
+                  : true
+            );
+            const ORANGE = "#f97316";
+            const stat = (label, value, color) => (
+              <div style={{ flex: 1, minWidth: 90, padding: "8px 12px", border: `1px solid ${color}33`, background: `${color}0d`, borderRadius: 8 }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color }}>{value}</div>
+                <div style={{ fontSize: 10.5, color: C.textMuted }}>{label}</div>
+              </div>
+            );
+            const chip = (text, color) => (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, background: `${color}22`, color, padding: "2px 8px", borderRadius: 12, fontWeight: 600 }}>{text}</span>
+            );
+            const line = (label, children) => (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 5 }}>
+                <span style={{ color: C.textMuted, width: 150 }}>{label}</span>
+                {children}
+              </div>
+            );
+            const addBtn = (apply) => (
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 11, padding: "2px 8px" }}
+                onClick={(e) => { const inp = e.currentTarget.previousSibling; apply(inp.value); inp.value = ""; }}
+              >
+                Set
+              </button>
+            );
+            const pickEditor = (options, placeholder, newPlaceholder, apply) => (
+              <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                <select
+                  className="input"
+                  value=""
+                  onChange={(e) => { if (e.target.value) apply(e.target.value); }}
+                  style={{ fontSize: 11, padding: "2px 4px", maxWidth: 130 }}
+                >
+                  <option value="">{placeholder}</option>
+                  {options.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <input
+                  className="input"
+                  placeholder={newPlaceholder}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); apply(e.target.value); e.target.value = ""; } }}
+                  style={{ fontSize: 11, padding: "2px 6px", width: 100 }}
+                />
+                {addBtn(apply)}
+              </div>
+            );
+            const isoOrEmpty = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? v : "");
+            return (
+              <div style={{ opacity: bulkChecking ? 0.6 : 1, transition: "opacity .15s" }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                  {stat("Total rows", S.total, C.blue)}
+                  {stat("Ready to import", S.ready, C.green)}
+                  {stat("Needs input", S.needs_input, ORANGE)}
+                  {stat("Errors (skipped)", S.error, C.red)}
+                </div>
+
+                {/* plan */}
+                <div style={{ padding: "10px 14px", border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 10, fontSize: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Import plan · academic year {bulkPreview.academic_year}</div>
+                  {line("Existing classes", S.classes_existing.length === 0 ? <span style={{ color: C.textMuted }}>—</span> : S.classes_existing.map((x) => <span key={x.name}>{chip(`${x.name} +${x.students}`, C.green)}</span>))}
+                  {line("New classes (auto-created)", S.classes_new.length === 0 ? <span style={{ color: C.textMuted }}>—</span> : S.classes_new.map((x) => <span key={x.name}>{chip(`＋ ${x.name} +${x.students}`, C.blue)}</span>))}
+                  {S.classes_restore.length > 0 && line("Deleted — restored", S.classes_restore.map((x) => <span key={x.name}>{chip(`${x.name} +${x.students}`, C.yellow)}</span>))}
+                  {line("Sections", S.sections.length === 0 ? <span style={{ color: C.textMuted }}>—</span> : S.sections.map((x) => (
+                    <span key={x.class_name + x.name}>
+                      {chip(`${x.action === "existing" ? "" : "＋ "}${x.class_name} – ${x.name} +${x.students}`, x.action === "existing" ? C.green : C.blue)}
+                    </span>
+                  )))}
+                  {S.over_capacity.length > 0 && (
+                    <div style={{ color: C.yellow, marginBottom: 5 }}>
+                      ⚑ Over capacity: {S.over_capacity.map((x) => `${x.class_name} – ${x.name} (${x.total}/${x.max})`).join(", ")}
+                    </div>
+                  )}
+                  <div style={{ color: C.textMuted, marginTop: 6, lineHeight: 1.7 }}>
+                    {S.legacy.students > 0 && <div>💰 Previous Dues for <b>{S.legacy.students}</b> students — total <b>{inr(S.legacy.total_paise)}</b>
+                      {S.extra.students > 0 && <> · extra charges for {S.extra.students} students (<b>{inr(S.extra.total_paise)}</b>)</>}
+                      {S.categories_new.length > 0 && <> · new fee categories: {S.categories_new.join(", ")}</>}
+                    </div>}
+                    {S.legacy.students === 0 && S.extra.students > 0 && <div>💰 Extra charges for {S.extra.students} students — <b>{inr(S.extra.total_paise)}</b></div>}
+                    {S.admission_auto > 0 && <div>• {S.admission_auto} admission numbers and {S.roll_auto} roll numbers will be generated automatically</div>}
+                    {S.no_guardian > 0 && <div>• {S.no_guardian} students have no guardian details</div>}
+                  </div>
+                  {S.needs_class > 0 && (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.border}`, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ color: ORANGE, fontWeight: 700 }}>⚑ {S.needs_class} rows have no class — set for all:</span>
+                      {pickEditor(classes.map((c) => c.name), "pick class…", "or new class", applyClassToAll)}
+                    </div>
+                  )}
+                </div>
+
+                {/* filter */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+                  {[["all", "All"], ["needs", "Needs input / errors"], ["errors", "Errors only"]].map(([k, l]) => (
+                    <button key={k} className={`btn ${bulkFilter === k ? "btn-primary" : "btn-ghost"}`} style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => setBulkFilter(k)}>{l}</button>
+                  ))}
+                  <span style={{ fontSize: 11.5, color: C.textMuted, marginLeft: 6 }}>Showing {shown.length} of {bulkPreview.rows.length}</span>
+                </div>
+
+                <div style={{ overflowX: "auto", maxHeight: 380, overflowY: "auto", border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                  <table className="table" style={{ fontSize: 11, minWidth: 980 }}>
+                    <thead>
+                      <tr>
+                        <th>Row</th>
+                        <th>Student</th>
+                        <th style={{ minWidth: 190 }}>Class</th>
+                        <th style={{ minWidth: 190 }}>Section</th>
+                        <th>Roll</th>
+                        <th style={{ minWidth: 120 }}>Date of birth</th>
+                        <th>Guardian</th>
+                        <th>Opening dues</th>
+                        <th style={{ minWidth: 160 }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shown.map((r) => {
+                        const raw = bulkRows[r.idx] || {};
+                        const name = [raw.first_name, raw.middle_name, raw.last_name].filter(Boolean).join(" ") || raw.full_name || "—";
+                        const isError = r.status === "error";
+                        const needs = r.needs || [];
+                        const needsInput = r.status === "needs_input";
+                        const pl = r.plan;
+                        return (
+                          <tr key={r.idx} style={{ background: isError ? `${C.red}08` : needsInput ? `${ORANGE}0d` : "transparent", verticalAlign: "top" }}>
+                            <td style={{ color: C.textMuted }}>{r.line}</td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>{name}</div>
+                              <div style={{ fontSize: 10, color: C.textMuted, fontFamily: "monospace" }}>
+                                {r.admission_no || raw.admission_no || "—"}{r.flags.includes("admission_auto") ? " (auto)" : ""}
+                              </div>
+                            </td>
+                            <td>
+                              {needs.includes("class") ? (
+                                pickEditor(classes.map((c) => c.name), "pick class…", "or new class", (v) => setRowField(r.idx, "class_name", v))
+                              ) : pl ? (
+                                <span>{pl.grade.name} {pl.grade.action === "new" ? chip("new", C.blue) : pl.grade.action === "restore" ? chip("restored", C.yellow) : null}</span>
+                              ) : (
+                                <span style={{ color: C.textMuted }}>{raw.class_name || "—"}</span>
+                              )}
+                            </td>
+                            <td>
+                              {needs.includes("section") ? (
+                                pickEditor(r.section_options || [], "pick section…", "or new section", (v) => setRowField(r.idx, "section_name", v))
+                              ) : pl ? (
+                                <span>
+                                  {pl.section.name}{" "}
+                                  {pl.section.action === "new" ? chip("new", C.blue) : pl.section.action === "restore" ? chip("restored", C.yellow) : null}
+                                  {pl.section.how === "default" && <span style={{ color: C.textMuted, fontSize: 10 }}> (default)</span>}
+                                  {pl.section.how === "only_section" && <span style={{ color: C.textMuted, fontSize: 10 }}> (only section)</span>}
+                                </span>
+                              ) : (
+                                <span style={{ color: C.textMuted }}>{raw.section_name || "—"}</span>
+                              )}
+                            </td>
+                            <td>{r.roll_no ? <span>{r.roll_no}{r.flags.includes("roll_auto") ? <span style={{ color: C.textMuted, fontSize: 10 }}> (auto)</span> : null}</span> : <span style={{ color: C.textMuted }}>—</span>}</td>
+                            <td>
+                              {needs.includes("dob") ? (
+                                <input
+                                  type="date"
+                                  className="input"
+                                  max={todayStr}
+                                  value={isoOrEmpty(raw.date_of_birth)}
+                                  onChange={(e) => setRowField(r.idx, "date_of_birth", e.target.value)}
+                                  style={{ fontSize: 11, padding: "2px 6px" }}
+                                />
+                              ) : (
+                                <span>{raw.date_of_birth || "—"}</span>
+                              )}
+                            </td>
+                            <td style={{ fontSize: 10.5 }}>
+                              <div>{raw.guardian_name || <span style={{ color: C.textMuted }}>—</span>}</div>
+                              <div style={{ color: C.textMuted }}>{raw.guardian_phone || ""}</div>
+                            </td>
+                            <td style={{ fontSize: 10.5, whiteSpace: "nowrap" }}>
+                              {r.fee.legacy_paise > 0 && <div style={{ color: C.red, fontWeight: 600 }}>{inr(r.fee.legacy_paise)} <span style={{ color: C.textMuted, fontWeight: 400 }}>previous</span></div>}
+                              {r.fee.extra_paise > 0 && <div>{inr(r.fee.extra_paise)} <span style={{ color: C.textMuted }}>{r.fee.extra_title}</span></div>}
+                              {!r.fee.legacy_paise && !r.fee.extra_paise && <span style={{ color: C.textMuted }}>—</span>}
+                            </td>
+                            <td>
+                              {isError ? (
+                                <div>
+                                  <span className="badge badge-red" style={{ fontSize: 10 }}>✕ Skipped</span>
+                                  {r.errors.map((m, k) => <div key={k} style={{ color: C.red, fontSize: 10.5, marginTop: 2 }}>{m}</div>)}
+                                </div>
+                              ) : needsInput ? (
+                                <div>
+                                  <span style={{ fontSize: 10, background: `${ORANGE}22`, color: ORANGE, padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>✎ Needs input</span>
+                                  <div style={{ fontSize: 10.5, color: ORANGE, marginTop: 2 }}>{needs.map((n) => NEEDS_LABEL[n]).join(" · ")}</div>
+                                </div>
+                              ) : r.warnings.length ? (
+                                <span className="badge badge-yellow" style={{ fontSize: 10, cursor: "help" }} title={r.warnings.join("\n")}>⚑ Review ({r.warnings.length})</span>
+                              ) : (
+                                <span className="badge badge-green" style={{ fontSize: 10 }}>✓ Ready</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>
+                  Rows marked “Needs input” or “Skipped” are not imported. Fix the flagged fields above, or download them after the import, correct the CSV and upload again.
+                </div>
+              </div>
+            );
+          })()}
+
+          {!bulkPreview && !bulkChecking && !bulkProgress && !bulkResult && !bulkParseError && (
+            <div style={{ textAlign: "center", padding: "28px 0", color: C.textMuted, fontSize: 13 }}>
+              Upload a CSV file to preview and validate before importing. Nothing is saved until you click Import.
             </div>
           )}
         </div>
