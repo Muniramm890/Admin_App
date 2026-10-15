@@ -48,7 +48,7 @@ export const DataProvider = ({ children }) => {
           students: [],
           teachers: [],
           loading: false,
-          error: err.message || "Data load nahi ho paya",
+          error: err.message || "Failed to load data",
         });
       }
     };

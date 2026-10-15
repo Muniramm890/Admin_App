@@ -57,7 +57,7 @@ export const SectionTransferTab = () => {
         roll_no: m.roll_no,
       });
       setStudents((prev) => prev.filter((s) => s.student_id !== studentId));
-      setMsg("Section update ho gaya ✅");
+      setMsg("Section updated ✅");
     } catch (e) {
       setMsg(e.message);
     }
@@ -66,7 +66,7 @@ export const SectionTransferTab = () => {
   return (
     <div>
       <div style={{ marginBottom: 16, fontSize: 12.5, color: C.textMuted }}>
-        Isi session ke andar student ko ek section se doosre section me move karo — koi nayi history entry nahi banti, sirf current section badalta hai.
+        Move a student from one section to another within the same session — no new history entry is created, only the current section changes.
       </div>
       <FormRow label="From Section">
         <select className="select" value={fromSectionId} onChange={(e) => setFromSectionId(e.target.value)}>

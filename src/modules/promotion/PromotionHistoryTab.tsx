@@ -33,7 +33,7 @@ export const PromotionHistoryTab = ({ history, loading }) => {
               </tr>
             ))}
             {history.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign: "center", padding: 30, color: C.textMuted }}>Koi promotion run abhi tak nahi hua</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: "center", padding: 30, color: C.textMuted }}>No promotion runs yet</td></tr>
             )}
           </tbody>
         </table>

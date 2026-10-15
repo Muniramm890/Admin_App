@@ -76,7 +76,7 @@ export const PromoteStudentsTab = ({ fromYearId, toYearId, onDone }) => {
   };
 
   const handleSubmit = async () => {
-    if (!fromYearId || !toYearId) { setError("From aur To dono session select karo"); return; }
+    if (!fromYearId || !toYearId) { setError("Select both the From and To sessions"); return; }
     const actions = Object.entries(rowActions).map(([student_id, a]) => ({
       student_id,
       enrolment_id: a.enrolment_id,
@@ -86,7 +86,7 @@ export const PromoteStudentsTab = ({ fromYearId, toYearId, onDone }) => {
       reason: a.reason,
     }));
     const invalidPromote = actions.find((a) => a.action === "promote" && !a.to_section_id);
-    if (invalidPromote) { setError("Kuch students ke liye 'Promote to Section' select nahi hua"); return; }
+    if (invalidPromote) { setError("'Promote to Section' is not selected for some students"); return; }
 
     setSaving(true);
     setError("");
@@ -137,7 +137,7 @@ export const PromoteStudentsTab = ({ fromYearId, toYearId, onDone }) => {
         <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Loading students…</div>
       ) : students.length === 0 ? (
         <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>
-          {sectionId ? "Sab students is section ke already processed hain." : "Ek section select karo upar se."}
+          {sectionId ? "All students in this section have already been processed." : "Select a section above."}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>

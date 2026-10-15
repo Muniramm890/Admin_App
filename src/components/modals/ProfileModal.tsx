@@ -397,7 +397,7 @@ export const ProfileModal = ({ open, onClose }) => {
                     </div>
                     <div>
                       <div className="syne" style={{ fontSize: 15, fontWeight: 700 }}>Change Password</div>
-                      <div style={{ fontSize: 12.5, color: C.textMuted, marginTop: 2 }}>Strong password rakhein aur kisi ke saath share na karein.</div>
+                      <div style={{ fontSize: 12.5, color: C.textMuted, marginTop: 2 }}>Choose a strong password and never share it with anyone.</div>
                     </div>
                   </div>
 
@@ -464,7 +464,7 @@ export const ProfileModal = ({ open, onClose }) => {
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 12.5, color: C.textMuted }}>Naya password kam se kam 6 characters ka hona chahiye.</div>
+                  <div style={{ fontSize: 12.5, color: C.textMuted }}>New password must be at least 6 characters long.</div>
                   <button className="pf-btn primary" onClick={handleChangePassword}
                     disabled={savingPw || !pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword}>
                     {savingPw ? "Updating…" : "Update Password"}

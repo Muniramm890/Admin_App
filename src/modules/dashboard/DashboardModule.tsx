@@ -182,7 +182,7 @@ export const DashboardModule = ({ school }) => {
             fontSize: 13,
           }}
         >
-          ⚠️ Students/Teachers ka data load nahi ho paya ({dataError}). Dashboard ke count adhure ho sakte hain — page refresh karke dekhein.
+          ⚠️ Could not load student/teacher data ({dataError}). Dashboard counts may be incomplete — please refresh the page.
         </div>
       )}
       <div

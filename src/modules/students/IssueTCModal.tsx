@@ -26,7 +26,7 @@ export const IssueTCModal = ({ student, onClose, onDone }) => {
   }, [student]);
 
   const handleSubmit = async () => {
-    if (!reason.trim()) { setError("Reason likhna zaroori hai"); return; }
+    if (!reason.trim()) { setError("Reason is required"); return; }
     setSaving(true);
     setError("");
     try {
@@ -37,7 +37,7 @@ export const IssueTCModal = ({ student, onClose, onDone }) => {
       });
       onDone();
     } catch (e) {
-      setError(e.message || "TC issue nahi ho paya");
+      setError(e.message || "Failed to issue TC");
     } finally {
       setSaving(false);
     }
@@ -51,8 +51,8 @@ export const IssueTCModal = ({ student, onClose, onDone }) => {
             <strong style={{ color: C.text }}>
               {student.first_name} {student.last_name}
             </strong>{" "}
-            ({student.admission_no}) ko school se exit mark karne wale hain — yeh
-            action <strong>reverse nahi ho sakta</strong> normal flow se.
+            ({student.admission_no}) is about to be marked as exited from the school — this
+            action <strong>cannot be reversed</strong> through the normal flow.
           </div>
 
           <FormGrid cols={1}>

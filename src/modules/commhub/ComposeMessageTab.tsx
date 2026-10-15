@@ -97,8 +97,8 @@ export const ComposeMessageTab = ({ academicYearId, onSent }) => {
   const selectedChannels = Object.entries(channels).filter(([, v]) => v).map(([k]) => k);
 
   const handleSend = async () => {
-    if (!title.trim() || !body.trim()) { setError("Title aur message likhna zaroori hai"); return; }
-    if (selectedChannels.length === 0) { setError("Kam se kam ek channel select karo"); return; }
+    if (!title.trim() || !body.trim()) { setError("Title and message are required"); return; }
+    if (selectedChannels.length === 0) { setError("Select at least one channel"); return; }
 
     setSending(true);
     setError("");
@@ -155,7 +155,7 @@ export const ComposeMessageTab = ({ academicYearId, onSent }) => {
         )}
         {strictestType !== "none" && (
           <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 6 }}>
-            "{strictestType}" attachment ke sath sirf yeh channels valid hain: <strong>{allowedChannels.join(", ")}</strong>
+            "{strictestType}" attachments can only be sent through these channels: <strong>{allowedChannels.join(", ")}</strong>
           </div>
         )}
       </div>
@@ -201,7 +201,7 @@ export const ComposeMessageTab = ({ academicYearId, onSent }) => {
 
       {preview && (
         <div style={{ padding: 12, background: `${C.blue}11`, border: `1px solid ${C.blue}33`, borderRadius: 10, marginBottom: 16, fontSize: 13 }}>
-          Yeh message <strong>{preview.total}</strong> logon tak jayega -- <strong>{preview.students}</strong> students, <strong>{preview.staff}</strong> staff.
+          This message will reach <strong>{preview.total}</strong> people — <strong>{preview.students}</strong> students, <strong>{preview.staff}</strong> staff.
         </div>
       )}
 

@@ -12,7 +12,7 @@ export const PromotionOverviewTab = ({ overview, loading, totals, toYearId, onPr
   const grades = [...new Map(rows.map((r) => [r.grade_id, r.grade_name])).entries()];
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Loading overview…</div>;
-  if (!overview) return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Session select karo upar se.</div>;
+  if (!overview) return <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Select a session above.</div>;
 
   return (
     <div>
@@ -27,7 +27,7 @@ export const PromotionOverviewTab = ({ overview, loading, totals, toYearId, onPr
 
       {!toYearId && (
         <div style={{ padding: "10px 14px", background: `${C.orange || C.red}11`, border: `1px solid ${C.orange || C.red}33`, borderRadius: 10, marginBottom: 16, fontSize: 12.5, color: C.textMuted }}>
-          "To Session" select nahi kiya — promoted/retained/TC breakdown sirf tab dikhega jab dono session select honge. Grade-wise pending count phir bhi neeche visible hai.
+          "To Session" is not selected — the promoted/retained/TC breakdown appears only after both sessions are selected. The grade-wise pending count is still shown below.
         </div>
       )}
 
@@ -75,7 +75,7 @@ export const PromotionOverviewTab = ({ overview, loading, totals, toYearId, onPr
                 </tr>
               ))}
               {filteredRows.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 30, color: C.textMuted }}>Koi section nahi mila</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 30, color: C.textMuted }}>No sections found</td></tr>
               )}
             </tbody>
           </table>

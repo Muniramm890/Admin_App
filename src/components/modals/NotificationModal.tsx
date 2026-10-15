@@ -62,7 +62,7 @@ export const NotificationModal = ({ open, onClose, onUnreadChange }) => {
             </div>
           ))}
           {list.length === 0 && (
-            <div style={{ textAlign: "center", padding: 30, color: C.textMuted }}>Koi notification nahi</div>
+            <div style={{ textAlign: "center", padding: 30, color: C.textMuted }}>No notifications</div>
           )}
         </div>
       )}

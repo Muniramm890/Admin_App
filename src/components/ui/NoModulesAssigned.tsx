@@ -17,11 +17,11 @@ export const NoModulesAssigned = () => (
         <Icon name="user" size={28} />
       </div>
       <div className="syne" style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
-        Koi module assign nahi hai
+        No modules assigned
       </div>
       <div style={{ fontSize: 13.5, color: C.textMuted, lineHeight: 1.6 }}>
-        Aapke account ko abhi tak kisi module ka access nahi mila hai. Apne school admin se
-        <b> User Management</b> me permission dene ko kahein, phir page refresh karein.
+        Your account has not been given access to any module yet. Ask your school admin to grant
+        permissions in <b>User Management</b>, then refresh the page.
       </div>
     </div>
   </div>
