@@ -6,17 +6,27 @@
 // USER MANAGEMENT 
 //====================================================
 
+// [teacher-app] Sidebar ke saare assignable modules (sidebar order me). Pehle missing the:
+// homework, arrangement (Substitution), commhub, payroll, transport, promotion.
+// usermanagement + auditlogs yaha nahi hain (sirf school_admin ke liye, assign nahi hote).
+// NOTE: key "transport" hai (sidebar ka id "TransportModule" hai; mapping navigation me hogi).
 export const PERMISSION_MODULES = [
   { id: "dashboard", label: "Dashboard" },
-  { id: "setup", label: "School Setup" },
-  { id: "students", label: "Students" },
-  { id: "teachers", label: "Teachers" },
   { id: "attendance", label: "Attendance" },
-  { id: "timetable", label: "Timetable" },
+  { id: "homework", label: "Homework" },
   { id: "tests", label: "Quick Tests" },
-  { id: "fees", label: "Fee Management" },
+  { id: "timetable", label: "Timetable" },
+  { id: "arrangement", label: "Substitution" },
   { id: "exams", label: "Exam Management" },
   { id: "results", label: "Results" },
   { id: "leaderboard", label: "Leaderboard" },
   { id: "analytics", label: "Academic Analytics" },
+  { id: "students", label: "Students" },
+  { id: "commhub", label: "Communication Hub" },
+  { id: "teachers", label: "Teachers" },
+  { id: "fees", label: "Fee Management" },
+  { id: "payroll", label: "Payroll" },
+  { id: "transport", label: "Transport" },
+  { id: "promotion", label: "Promotion & TC" },
+  { id: "setup", label: "School Setup" },
 ];
