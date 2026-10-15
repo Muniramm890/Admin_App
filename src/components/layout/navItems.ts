@@ -5,46 +5,48 @@
 // ═══════════════════════════════════════════════════════════════
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════════
+// [teacher-app] Regrouped: roz ke kaam upar, kam use hone wale (management/admin) sabse neeche.
+// Sirf order + group badla hai; id/label/icon same hain (SchoolERP.tsx ka switch aur URL ids unchanged).
 export const NAV_ITEMS = [
   {
     group: "MAIN",
     items: [{ id: "dashboard", label: "Dashboard", icon: "dashboard" }],
   },
   {
-    group: "ACADEMIC SETUP",
-    items: [
-      { id: "setup", label: "School Setup", icon: "setup" },
-      { id: "students", label: "Students", icon: "students" },
-      { id: "teachers", label: "Teachers", icon: "teachers" },
-      { id: "promotion", label: "Promotion & TC", icon: "arrow_right" },
-      { id: "TransportModule", label:"Transport",icon: "bus"},
-      { id: "commhub", label: "Communication Hub", icon: "bell" },
-    ],
-  },
-  {
     group: "DAILY OPS",
     items: [
       { id: "attendance", label: "Attendance", icon: "attendance" },
-      { id: "arrangement", label: "Substitution", icon: "refresh" },
-      { id: "timetable", label: "Timetable", icon: "timetable" },
-      { id: "tests", label: "Quick Tests", icon: "test" },
       { id: "homework", label: "Homework", icon: "homework" },
+      { id: "tests", label: "Quick Tests", icon: "test" },
+      { id: "timetable", label: "Timetable", icon: "timetable" },
+      { id: "arrangement", label: "Substitution", icon: "refresh" },
     ],
   },
   {
-    group: "FINANCE & RESULTS",
+    group: "ACADEMICS",
+    items: [
+      { id: "exams", label: "Exam Management", icon: "test" },
+      { id: "results", label: "Results", icon: "result" },
+      { id: "leaderboard", label: "Leaderboard", icon: "trophy" },
+      { id: "analytics", label: "Academic Analytics", icon: "academic" },
+    ],
+  },
+  {
+    group: "STUDENTS & STAFF",
+    items: [
+      { id: "students", label: "Students", icon: "students" },
+      { id: "commhub", label: "Communication Hub", icon: "bell" },
+      { id: "teachers", label: "Teachers", icon: "teachers" },
+    ],
+  },
+  {
+    group: "SCHOOL MANAGEMENT",
     items: [
       { id: "fees", label: "Fee Management", icon: "fee" },
       { id: "payroll", label: "Payroll", icon: "wallet" },
-      { id: "exams", label: "Exam Management", icon: "test" },
-      { id: "results", label: "Results", icon: "result" },
-    ],
-  },
-  {
-    group: "ANALYTICS",
-    items: [
-      { id: "leaderboard", label: "Leaderboard", icon: "trophy" },
-      { id: "analytics", label: "Academic Analytics", icon: "academic" },
+      { id: "TransportModule", label: "Transport", icon: "bus" },
+      { id: "promotion", label: "Promotion & TC", icon: "arrow_right" },
+      { id: "setup", label: "School Setup", icon: "setup" },
     ],
   },
   {
