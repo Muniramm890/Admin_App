@@ -219,8 +219,10 @@ export const ProfileModal = ({ open, onClose, onLogout, themeMode, onToggleTheme
     .pf-hero:before{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:#ffffff1c;}
     .pf-hero:after{content:"";position:absolute;left:-40px;bottom:-110px;width:220px;height:220px;border-radius:50%;background:#ffffff12;}
     .pf-hero > *{position:relative;z-index:1;}
+    .pf-hero-row{padding-right:44px;}
     .pf-close{position:absolute!important;top:16px;right:16px;width:34px;height:34px;border-radius:50%;border:1px solid #ffffff44;
-      background:#ffffff24;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px);transition:background .15s;}
+      background:#ffffff3d;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;
+      z-index:10;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
     .pf-close:hover{background:#ffffff40;}
     .pf-avatar-wrap{position:relative;width:96px;height:96px;flex-shrink:0;}
     .pf-avatar{width:96px;height:96px;border-radius:50%;object-fit:cover;border:4px solid #ffffffcc;box-shadow:0 8px 24px #00000040;
@@ -280,7 +282,9 @@ export const ProfileModal = ({ open, onClose, onLogout, themeMode, onToggleTheme
     .pf-mobile .pf-avatar{font-size:22px;border-width:3px;}
     .pf-mobile .pf-cam{width:28px;height:28px;}
     .pf-mobile .pf-hero .syne{font-size:18px!important;}
-    .pf-mobile .pf-close{top:10px;right:10px;}
+    .pf-mobile .pf-close{top:8px;right:8px;width:42px;height:42px;}
+    .pf-mobile .pf-hero-row{padding-right:48px;}
+    .pf-mobile .pf-stat,.pf-mobile .pf-pill{backdrop-filter:none;-webkit-backdrop-filter:none;}
     .pf-mobile .pf-stat{min-width:0;flex:1 1 44%;padding:8px 10px;}
     .pf-mobile .pf-tabs{margin:10px 12px 0;gap:4px;padding:4px;}
     .pf-mobile .pf-tab{padding:9px 6px;font-size:12.5px;gap:5px;}
