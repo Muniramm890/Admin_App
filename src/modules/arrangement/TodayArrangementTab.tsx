@@ -166,7 +166,8 @@ export const TodayArrangementTab = ({ onSaved }) => {
 
   return (
     <div className="slide-in">
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      <style>{`.arr-bar > div:first-child{margin-bottom:0!important;}`}</style>
+      <div className="arr-bar" style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <FormRow label="Arrangement Date">
           <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </FormRow>
