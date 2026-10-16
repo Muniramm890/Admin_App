@@ -24,6 +24,8 @@ export const ComposeMessageTab = ({ academicYearId, onSent }) => {
   const [channels, setChannels] = useState({ app: true, email: false, sms: false });
   const [targets, setTargets] = useState([{ target_type: "all_school" }]);
   const [files, setFiles] = useState([]);
+  const [allowReplies, setAllowReplies] = useState(false);
+  const [repliesCloseOn, setRepliesCloseOn] = useState("");
   const [dragOver, setDragOver] = useState(false);
 
   const [grades, setGrades] = useState([]);
@@ -125,11 +127,15 @@ export const ComposeMessageTab = ({ academicYearId, onSent }) => {
       fd.append("channels", JSON.stringify(selectedChannels));
       fd.append("targets", JSON.stringify(cleanTargets()));
       fd.append("academic_year_id", academicYearId);
+      if (allowReplies) {
+        fd.append("allow_replies", "1");
+        if (repliesCloseOn) fd.append("replies_close_at", new Date(`${repliesCloseOn}T23:59:59`).toISOString());
+      }
       files.forEach((f) => fd.append("attachments", f));
 
       const res = await apiRequest("/comm/messages", "POST", fd, true);
       setResult(res?.data || null);
-      setTitle(""); setBody(""); setTargets([{ target_type: "all_school" }]); setFiles([]); setPreview(null);
+      setTitle(""); setBody(""); setTargets([{ target_type: "all_school" }]); setFiles([]); setPreview(null); setAllowReplies(false); setRepliesCloseOn("");
       setTimeout(() => onSent?.(), 1200);
     } catch (e) { setError(e.message); }
     finally { setSending(false); }
@@ -299,6 +305,33 @@ export const ComposeMessageTab = ({ academicYearId, onSent }) => {
               );
             })}
           </div>
+        </SectionCard>
+
+        <SectionCard icon="message" title="Replies" sub="Let people answer you privately">
+          <button
+            type="button" onClick={() => setAllowReplies((v) => !v)}
+            style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: 14, borderRadius: 14, cursor: "pointer", fontFamily: "inherit", color: C.text, textAlign: "left",
+              background: allowReplies ? `${C.primary}14` : C.surfaceAlt, border: `1.5px solid ${allowReplies ? C.primary : C.border}`, touchAction: "manipulation" }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>Allow replies</div>
+              <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 2, lineHeight: 1.45 }}>
+                Each person gets a private chat with you. Replies are visible only to you and school admins — never to other recipients.
+              </div>
+            </div>
+            <span style={{ width: 42, height: 24, borderRadius: 100, flexShrink: 0, position: "relative", background: allowReplies ? C.primary : C.border, transition: "background .15s" }}>
+              <span style={{ position: "absolute", top: 3, left: allowReplies ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left .15s" }} />
+            </span>
+          </button>
+          {allowReplies && (
+            <div style={{ marginTop: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: C.textMuted, display: "block", marginBottom: 6 }}>Close replies on (optional)</label>
+              <input type="date" className="input" style={{ maxWidth: 220 }} value={repliesCloseOn} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setRepliesCloseOn(e.target.value)} />
+              <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 8, lineHeight: 1.45 }}>
+                Staff can reply in the app Inbox. Student replies need the student app update.
+              </div>
+            </div>
+          )}
         </SectionCard>
       </div>
 

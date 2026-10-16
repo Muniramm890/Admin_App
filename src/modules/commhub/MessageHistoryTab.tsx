@@ -11,6 +11,7 @@ import { KpiCard } from "../../components/ui/KpiCard";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { LogoLoader } from "../../components/ui/LogoLoader";
 import { CATEGORY_META, CHANNEL_META, fmtDate, fmtSize, fmtTime } from "./helpers";
+import { RepliesPanel } from "./RepliesPanel";
 import { C } from "../../theme/theme";
 
 const STATUS_BADGE = { sent: "badge-green", partial: "badge-yellow", failed: "badge-red" };
@@ -20,6 +21,7 @@ export const MessageHistoryTab = ({ onCompose }) => {
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState(null);
   const [viewers, setViewers] = useState(null);
+  const [repliesFor, setRepliesFor] = useState(null);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
 
@@ -143,8 +145,14 @@ export const MessageHistoryTab = ({ onCompose }) => {
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 12px" }} onClick={() => openDetail(m.id)}>View</button>
                 <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }} onClick={() => openViewers(m.id)}>
-                  <Icon name="eye" size={13} /> Viewers
+                  <Icon name="eye" size={13} /> {m.seen_count ?? 0}/{total} seen
                 </button>
+                {(m.allow_replies || m.reply_count > 0) && (
+                  <button className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5, position: "relative" }} onClick={() => setRepliesFor(m)}>
+                    <Icon name="message" size={13} /> Replies{m.reply_count > 0 ? ` (${m.reply_count})` : ""}
+                    {m.unread_replies > 0 && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 100, background: C.red, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{m.unread_replies}</span>}
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -153,6 +161,8 @@ export const MessageHistoryTab = ({ onCompose }) => {
           <div className="card"><EmptyState icon="search" title="No matching announcements" sub="Try a different search or category." /></div>
         )}
       </div>
+
+      {repliesFor && <RepliesPanel message={repliesFor} onClose={() => setRepliesFor(null)} onChanged={load} />}
 
       {/* Detail */}
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.title || ""} width={560}>
@@ -225,7 +235,7 @@ export const MessageHistoryTab = ({ onCompose }) => {
         {viewers && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.textMuted, marginBottom: 6 }}>
-              <span>{viewers.seen} / {viewers.total} seen (in-app only)</span>
+              <span>{viewers.seen} / {viewers.total} seen</span>
               <strong style={{ color: C.text }}>{viewers.total ? Math.round((viewers.seen / viewers.total) * 100) : 0}%</strong>
             </div>
             <div style={{ height: 6, borderRadius: 3, background: C.surfaceAlt, overflow: "hidden", marginBottom: 14 }}>

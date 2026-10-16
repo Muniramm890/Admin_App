@@ -84,7 +84,7 @@ export const SchoolERP = () => {
   useEffect(() => {
     const fetchUnread = async () => {
       try {
-        const res = await apiRequest("/notifications/unread-count");
+        const res = await apiRequest("/inbox/unread-count");
         setUnreadCount(res?.data?.count || 0);
       } catch (e) { /* silent */ }
     };
