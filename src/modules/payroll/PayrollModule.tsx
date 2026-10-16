@@ -103,8 +103,8 @@ export const PayrollModule = ({ school }) => {
             <KpiCard label="Setup Pending" value={overview.staffSetupPending} sub="staff without salary structure" icon="alert" color={C.yellow} />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
-            <div className="card" style={{ padding: 20 }}>
+          <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr)", gap: 16 }}>
+            <div className="card" style={{ padding: 20, minWidth: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>Payroll Cost Trend (Last 6 Months)</h4>
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={overview.trend}>
@@ -117,7 +117,7 @@ export const PayrollModule = ({ school }) => {
               </ResponsiveContainer>
             </div>
 
-            <div className="card" style={{ padding: 20 }}>
+            <div className="card" style={{ padding: 20, minWidth: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>Cost by Department — {monthLabel(currentMY)}</h4>
               {overview.deptChart.length === 0 ? (
                 <div style={{ textAlign: "center", padding: 40, color: C.textMuted, fontSize: 13 }}>No payroll generated for this month yet.</div>

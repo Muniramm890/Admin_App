@@ -475,7 +475,7 @@ import { C } from "../../theme/theme";
           </div>
         }
       />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+      <div className="grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
         <KpiCard label="Total Tests" value={kpis.total} icon="test" color={C.blue} />
         <KpiCard label="Published" value={kpis.published} icon="check" color={C.green} />
         <KpiCard label="Drafts" value={kpis.drafts} icon="edit" color={C.yellow} />
