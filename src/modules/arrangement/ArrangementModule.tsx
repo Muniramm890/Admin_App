@@ -89,8 +89,8 @@ export const ArrangementModule = ({ school }) => {
             <KpiCard label="Top Affected Subject" value={[...overview.subjectChart].sort((a, b) => b.value - a.value)[0]?.name || "—"} icon="book" color={C.green} />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginBottom: 16 }}>
-            <div className="card" style={{ padding: 20 }}>
+          <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1.3fr) minmax(0,1fr)", gap: 16, marginBottom: 16 }}>
+            <div className="card" style={{ padding: 20, minWidth: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>Substitution Trend (Last 30 Days)</h4>
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={overview.trend}>
@@ -103,7 +103,7 @@ export const ArrangementModule = ({ school }) => {
               </ResponsiveContainer>
             </div>
 
-            <div className="card" style={{ padding: 20 }}>
+            <div className="card" style={{ padding: 20, minWidth: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>Gaps by Subject</h4>
               {overview.subjectChart.length === 0 ? (
                 <div style={{ textAlign: "center", padding: 40, color: C.textMuted, fontSize: 13 }}>No data yet.</div>
@@ -120,7 +120,7 @@ export const ArrangementModule = ({ school }) => {
             </div>
           </div>
 
-          <div className="card" style={{ padding: 20 }}>
+          <div className="card" style={{ padding: 20, minWidth: 0 }}>
             <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>Substitution Workload — Top Teachers (Last 30 Days)</h4>
             {overview.workload.length === 0 ? (
               <div style={{ textAlign: "center", padding: 30, color: C.textMuted, fontSize: 13 }}>No substitutions recorded yet.</div>
