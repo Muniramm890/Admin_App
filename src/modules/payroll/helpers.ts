@@ -16,6 +16,18 @@ export const currentMonthYear = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
+// [teacher-app] month math on "YYYY-MM" strings (same format as payslip.month_year)
+export const addMonths = (my, n) => {
+  const [y, m] = my.split("-").map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+export const monthRange = (from, to) => {
+  const out = [];
+  for (let cur = from; cur <= to && out.length < 60; cur = addMonths(cur, 1)) out.push(cur);
+  return out;
+};
+
 export const monthLabel = (my) => {
   const [y, m] = my.split("-");
   return `${MONTH_NAMES[+m - 1]} ${y}`;

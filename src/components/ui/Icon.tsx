@@ -6,6 +6,7 @@ export const Icon = ({ name, size = 16, color }) => {
   const icons = {
     // [teacher-app] added: mail, send, paperclip, message, megaphone (feather/lucide paths)
     mail: "M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6",
+    clock: "M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2", // [teacher-app] added (Payroll 'Pending Disbursal' used it but it did not exist)
     send: "M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z",
     paperclip:
       "M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48",

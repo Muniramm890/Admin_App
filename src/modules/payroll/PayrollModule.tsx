@@ -7,11 +7,12 @@ import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
 import { KpiCard } from "../../components/ui/KpiCard";
 import { useDialog } from "../../contexts/DialogContext";
+import { useSession } from "../../contexts/SessionContext";
 import { PayrollGenerateTab } from "./PayrollGenerateTab";
 import { PayslipLibraryTab } from "./PayslipLibraryTab";
 import { PayslipViewModal } from "./PayslipViewModal";
 import { StaffPayrollSetupModal } from "./StaffPayrollSetupModal";
-import { currentMonthYear, inr, monthLabel } from "./helpers";
+import { addMonths, currentMonthYear, inr, monthLabel, monthRange } from "./helpers";
 import { C } from "../../theme/theme";
 
 // ═══════════════════════════════════════════════════════════════
@@ -50,7 +51,29 @@ export const PayrollModule = ({ school }) => {
   useEffect(() => { loadAll(); }, [loadAll]);
 
   // ── Overview KPIs & charts (derived entirely from already-saved payslips) ──
-  const currentMY = currentMonthYear();
+  // [teacher-app] Overview month filter. Payroll is processed for the PREVIOUS month, so the old "current month only" view was always empty.
+  // Months come from the academic session selected in the top nav; default = previous month. Data is still the same
+  // /payroll/payslips list (filtered here), so no backend change and the same "YYYY-MM" month format as before.
+  const { currentYear } = useSession();
+  const [ovMonth, setOvMonth] = useState("");
+  const thisCalendarMY = currentMonthYear();
+  const prevCalendarMY = addMonths(thisCalendarMY, -1);
+  const monthsWithData = useMemo(() => new Set(allPayslips.map((p) => p.month_year)), [allPayslips]);
+  const monthOptions = useMemo(() => {
+    const s = currentYear?.start_date ? String(currentYear.start_date).slice(0, 7) : "";
+    const e = currentYear?.end_date ? String(currentYear.end_date).slice(0, 7) : "";
+    let list;
+    if (s && e) {
+      const upTo = e < thisCalendarMY ? e : thisCalendarMY; // no future months
+      list = s <= upTo ? monthRange(s, upTo) : [s];
+    } else {
+      list = Array.from(monthsWithData).sort(); // session dates unknown -> months that have payslips
+      if (list.length === 0) list = [prevCalendarMY];
+    }
+    return list.slice().reverse(); // latest first
+  }, [currentYear, monthsWithData, thisCalendarMY, prevCalendarMY]);
+  const defaultMY = monthOptions.includes(prevCalendarMY) ? prevCalendarMY : (monthOptions.find((m) => monthsWithData.has(m)) || monthOptions[0]);
+  const currentMY = monthOptions.includes(ovMonth) ? ovMonth : defaultMY; // selected overview month
   const thisMonthSlips = allPayslips.filter((p) => p.month_year === currentMY);
   const overview = useMemo(() => {
     const totalPayout = thisMonthSlips.reduce((s, p) => s + Number(p.net_pay), 0);
@@ -66,14 +89,14 @@ export const PayrollModule = ({ school }) => {
     const deptChart = Object.entries(byDept).map(([name, value]) => ({ name, value }));
 
     const trendMap = {};
-    allPayslips.forEach((p) => {
+    allPayslips.filter((p) => p.month_year <= currentMY).forEach((p) => { // trend = 6 months ending at the selected month
       trendMap[p.month_year] = (trendMap[p.month_year] || 0) + Number(p.net_pay);
     });
     const trend = Object.entries(trendMap).sort(([a], [b]) => a.localeCompare(b)).slice(-6)
       .map(([my, val]) => ({ month: monthLabel(my).split(" ")[0], amount: Math.round(val) }));
 
     return { totalPayout, pendingPayout, paidCount, totalStaffThisMonth: thisMonthSlips.length, staffSetupPending, deptChart, trend };
-  }, [thisMonthSlips, allPayslips, staffList]);
+  }, [thisMonthSlips, allPayslips, staffList, currentMY]);
 
   const PIE_COLORS = [C.primary, C.blue, C.green, C.yellow, C.red, "#8b5cf6"];
 
@@ -96,10 +119,22 @@ export const PayrollModule = ({ school }) => {
 
       {tab === "overview" && (
         <div className="slide-in">
+          {/* [teacher-app] month filter (months of the session selected in the top nav) */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.textMuted }}>Month</span>
+            <select className="select" style={{ maxWidth: 220 }} value={currentMY} onChange={(e) => setOvMonth(e.target.value)}>
+              {monthOptions.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+            </select>
+            {currentYear && <span className="badge badge-blue">Session {currentYear.name}</span>}
+            {thisMonthSlips.length === 0 && (
+              <span style={{ fontSize: 12.5, color: C.textMuted }}>No payslips generated for {monthLabel(currentMY)} yet — use the Generate tab.</span>
+            )}
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
             <KpiCard label={`Payroll Cost — ${monthLabel(currentMY)}`} value={inr(overview.totalPayout)} icon="wallet" color={C.primary} />
             <KpiCard label="Pending Disbursal" value={inr(overview.pendingPayout)} icon="clock" color={C.red} />
-            <KpiCard label="Paid This Month" value={overview.paidCount} sub={`of ${overview.totalStaffThisMonth} slips`} icon="check" color={C.green} />
+            <KpiCard label="Paid Payslips" value={overview.paidCount} sub={`of ${overview.totalStaffThisMonth} slips`} icon="check" color={C.green} />
             <KpiCard label="Setup Pending" value={overview.staffSetupPending} sub="staff without salary structure" icon="alert" color={C.yellow} />
           </div>
 
