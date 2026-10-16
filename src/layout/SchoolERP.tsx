@@ -14,6 +14,7 @@ import { Icon } from "../components/ui/Icon";
 import { useAuth } from "../contexts/AuthContext";
 import { useSession } from "../contexts/SessionContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { AnalyticsModule } from "../modules/analytics/AnalyticsModule";
 import { ArrangementModule } from "../modules/arrangement/ArrangementModule";
 import { AttendanceModule } from "../modules/attendance/AttendanceModule";
@@ -67,6 +68,7 @@ export const SchoolERP = () => {
   }, [moduleAllowed, firstAllowed, pathSeg]); // eslint-disable-line
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [school, setSchool] = useState(SCHOOL_CONFIG);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotifModal, setShowNotifModal] = useState(false);
@@ -232,6 +234,17 @@ export const SchoolERP = () => {
               userRole={user?.role}
           isAllowed={isAllowed}
             />
+            <div
+              className="drawer-footer"
+              style={{ position: "sticky", bottom: 0, gap: 8, padding: 12, background: C.surface, borderTop: `1px solid ${C.border}` }}
+            >
+              <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center" }} onClick={toggleTheme}>
+                {themeMode === "dark" ? "☀️ Light" : "🌙 Dark"}
+              </button>
+              <button className="btn btn-danger" style={{ flex: 1, justifyContent: "center" }} onClick={logout}>
+                <Icon name="logout" size={16} /> Logout
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -246,17 +259,7 @@ export const SchoolERP = () => {
         }}
       >
         {/* Topbar */}
-        <div
-          style={{
-            background: C.surface,
-            borderBottom: `1px solid ${C.border}`,
-            padding: "12px 20px",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flexShrink: 0,
-          }}
-        >
+        <div className="topbar">
           <button
             className="mobile-menu-btn btn btn-ghost"
             style={{ padding: "7px 9px" }}
@@ -271,7 +274,7 @@ export const SchoolERP = () => {
           >
             <Icon name="menu" size={18} />
           </button>
-          <div style={{ flex: 1 }}>
+          <div className="topbar-title">
             <div
               className="syne"
               style={{ fontSize: 14, fontWeight: 700, color: C.text }}
@@ -281,11 +284,10 @@ export const SchoolERP = () => {
               )?.label || "Dashboard"}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="topbar-right">
             {!sessionLoading && academicYears.length > 0 && (
               <select
-                className="select"
-                style={{ width: 150 }}
+                className="select topbar-session"
                 value={academicYearId}
                 onChange={(e) => setAcademicYearId(e.target.value)}
                 title="Academic Session"
@@ -293,7 +295,7 @@ export const SchoolERP = () => {
                 {academicYears.map((y) => (
                   <option key={y.id} value={y.id}>
                     {y.name}
-                    {y.is_current ? " (Current)" : ""}
+                    {y.is_current ? (isMobile ? " ✓" : " (Current)") : ""}
                   </option>
                 ))}
               </select>
@@ -363,7 +365,7 @@ export const SchoolERP = () => {
               {/* [teacher-app] name + role text hataya: sirf profile circle; click par ProfileModal me full detail */}
             </div>
             <button
-              className="btn btn-ghost"
+              className="btn btn-ghost topbar-desktop-only"
               onClick={toggleTheme}
               title="Toggle theme"
               style={{ padding: "7px 9px", fontSize: 15 }}
@@ -371,7 +373,7 @@ export const SchoolERP = () => {
               {themeMode === "dark" ? "☀️" : "🌙"}
             </button>
             <button
-              className="btn btn-danger"
+              className="btn btn-danger topbar-desktop-only"
               onClick={logout}
               title="Logout"
               style={{ padding: "7px 9px", marginLeft: 4 }}
