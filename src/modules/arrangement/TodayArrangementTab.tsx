@@ -1,6 +1,7 @@
 // FILE: teacher-app/src/modules/arrangement/TodayArrangementTab.tsx
 // Source: admin App.tsx -> TodayArrangementTab [11901-12095]
 // @ts-nocheck
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { FormRow } from "../../components/ui/FormRow";
@@ -15,6 +16,7 @@ import { todayISO } from "../../utils/date";
 // ═══════════════════════════════════════════════════════════════
 // TODAY'S ARRANGEMENT TAB — grouped by absent teacher
 // ═══════════════════════════════════════════════════════════════
+
 export const TodayArrangementTab = ({ onSaved }) => {
   const { dialogAlert, dialogConfirm } = useDialog();
   const [date, setDate] = useState(todayISO());
