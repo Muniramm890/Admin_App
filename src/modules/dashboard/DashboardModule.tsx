@@ -486,14 +486,14 @@ export const DashboardModule = ({ school }) => {
           gap: 20,
         }}
       >
-        <div className="card dash-card3 dash-card3-scroll" style={{ display: "flex", flexDirection: "column" }}>
+        <div className="card" style={{ minWidth: 0 }}>
           <h3
             className="syne"
             style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, flexShrink: 0 }}
           >
             Absent Teachers Today
           </h3>
-          <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+          <div style={{ maxHeight: 280, overflowY: "auto", overflowX: "auto", paddingRight: 4 }}>
             {staffLoading ? (
                <div className="pulse" style={{ color: C.primary, fontSize: 12, textAlign: "center", padding: "20px 0" }}>
                  Syncing attendance...
@@ -533,7 +533,7 @@ export const DashboardModule = ({ school }) => {
             )}
           </div>
         </div>
-        <div className="card">
+        <div className="card" style={{ minWidth: 0 }}>
           <h3
             className="syne"
             style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}
@@ -576,7 +576,7 @@ export const DashboardModule = ({ school }) => {
                 borderBottom: `1px solid ${C.border}22`,
               }}
             >
-              <span style={{ fontSize: 13, color: C.textMuted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 13, color: C.textMuted }}>
                 {s.label}
               </span>
               <span
@@ -588,16 +588,16 @@ export const DashboardModule = ({ school }) => {
             </div>
           ))}
         </div>
-        <div className="card" style={{ display: "flex", flexDirection: "column", height: 380, paddingBottom: 10 }}>
-          <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; } .dash-card3{min-width:0;max-width:100%;overflow:hidden;} .dash-card3-scroll{height:380px;} @media(max-width:768px){.dash-card3-scroll{height:320px;}}`}</style>
+        <div className="card" style={{ minWidth: 0 }}>
+          <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
           <h3
             className="syne"
             style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, flexShrink: 0 }}
           >
             Recent Activities
           </h3>
-          <div ref={activityScrollRef} style={{ flex: 1, overflowY: "auto", paddingRight: 4, scrollbarWidth: "none", msOverflowStyle: "none" }} className="hide-scrollbar">
-            <div> {/* Inner wrapper for seamless cloning */}
+          <div ref={activityScrollRef} style={{ maxHeight: 280, overflowY: "auto", overflowX: "auto", paddingRight: 4, scrollbarWidth: "none", msOverflowStyle: "none" }} className="hide-scrollbar">
+            <div style={{ minWidth: "max-content" }}> {/* Inner wrapper for seamless cloning */}
               {activityLoading ? (
                   <div className="pulse" style={{ color: C.primary, fontSize: 12, padding: "10px 0" }}>
                     Loading activity…
