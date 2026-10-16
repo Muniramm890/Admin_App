@@ -43,12 +43,12 @@ export const ArrangementHistoryTab = ({ history, onRefresh }) => {
       {filtered.length === 0 ? (
         <div className="card" style={{ padding: 40, textAlign: "center", color: C.textMuted }}>No substitutions in this range.</div>
       ) : (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+        <div className="card" style={{ padding: 0, overflowX: "auto", minWidth: 0 }}>
+          <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse", fontSize: 12.5 }}>
             <thead>
               <tr style={{ background: C.surfaceAlt, textAlign: "left" }}>
                 {["Date", "Period", "Class", "Subject", "Original", "Substitute", "Notified", ""].map((h) => (
-                  <th key={h} style={{ padding: "10px 14px", fontSize: 10.5, fontWeight: 800, color: C.textMuted, textTransform: "uppercase" }}>{h}</th>
+                  <th key={h} style={{ padding: "10px 14px", fontSize: 10.5, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -69,7 +69,7 @@ export const ArrangementHistoryTab = ({ history, onRefresh }) => {
                     ) : r.notify_status === "failed" ? (
                       <span style={{ color: C.red, fontSize: 11, fontWeight: 700 }} title="All channels failed — check CommHub message history">✗ Failed</span>
                     ) : (
-                      <span style={{ color: C.textFaint, fontSize: 11 }}>—</span>
+                      <span style={{ color: C.textMuted, fontSize: 11 }}>—</span>
                     )}
                   </td>
                   <td style={{ padding: "10px 14px", textAlign: "right" }}>
