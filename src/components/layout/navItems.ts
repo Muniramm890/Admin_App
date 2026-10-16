@@ -35,7 +35,7 @@ export const NAV_ITEMS = [
     group: "STUDENTS & STAFF",
     items: [
       { id: "students", label: "Students", icon: "students" },
-      { id: "commhub", label: "Communication Hub", icon: "bell" },
+      { id: "commhub", label: "Announcements", icon: "megaphone" },
       { id: "teachers", label: "Teachers", icon: "teachers" },
     ],
   },

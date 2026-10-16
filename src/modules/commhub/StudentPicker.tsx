@@ -1,5 +1,6 @@
 // FILE: teacher-app/src/modules/commhub/StudentPicker.tsx
 // Source: admin App.tsx -> StudentPicker [10191-10230]
+// [teacher-app] cosmetic tweaks only (selected tick, hover row)
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
@@ -34,7 +35,9 @@ export const StudentPicker = ({ value, label, onPick }) => {
           {results.map((s) => (
             <div
               key={s.id}
-              style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13 }}
+              style={{ padding: "9px 12px", cursor: "pointer", fontSize: 13 }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = C.surfaceAlt; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               onClick={() => { onPick(s.id, `${s.first_name} ${s.last_name}`); setQ(`${s.first_name} ${s.last_name}`); setOpen(false); }}
             >
               {s.first_name} {s.last_name} <span style={{ color: C.textMuted }}>({s.admission_no})</span>
@@ -42,7 +45,7 @@ export const StudentPicker = ({ value, label, onPick }) => {
           ))}
         </div>
       )}
-      {value && <div style={{ fontSize: 11, color: C.green, marginTop: 3 }}>Selected</div>}
+      {value && <div style={{ fontSize: 11.5, color: C.green, marginTop: 4, fontWeight: 600 }}>✓ Student selected</div>}
     </div>
   );
 };

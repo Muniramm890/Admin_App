@@ -22,7 +22,7 @@ export const PERMISSION_MODULES = [
   { id: "leaderboard", label: "Leaderboard" },
   { id: "analytics", label: "Academic Analytics" },
   { id: "students", label: "Students" },
-  { id: "commhub", label: "Communication Hub" },
+  { id: "commhub", label: "Announcements" },
   { id: "teachers", label: "Teachers" },
   { id: "fees", label: "Fee Management" },
   { id: "payroll", label: "Payroll" },
