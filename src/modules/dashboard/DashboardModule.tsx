@@ -482,11 +482,11 @@ export const DashboardModule = ({ school }) => {
         className="grid-3"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3,1fr)",
+          gridTemplateColumns: "repeat(3,minmax(0,1fr))",
           gap: 20,
         }}
       >
-        <div className="card" style={{ display: "flex", flexDirection: "column", height: 380, paddingBottom: 10 }}>
+        <div className="card dash-card3 dash-card3-scroll" style={{ display: "flex", flexDirection: "column" }}>
           <h3
             className="syne"
             style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, flexShrink: 0 }}
@@ -576,7 +576,7 @@ export const DashboardModule = ({ school }) => {
                 borderBottom: `1px solid ${C.border}22`,
               }}
             >
-              <span style={{ fontSize: 13, color: C.textMuted }}>
+              <span style={{ fontSize: 13, color: C.textMuted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {s.label}
               </span>
               <span
@@ -589,7 +589,7 @@ export const DashboardModule = ({ school }) => {
           ))}
         </div>
         <div className="card" style={{ display: "flex", flexDirection: "column", height: 380, paddingBottom: 10 }}>
-          <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+          <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; } .dash-card3{min-width:0;max-width:100%;overflow:hidden;} .dash-card3-scroll{height:380px;} @media(max-width:768px){.dash-card3-scroll{height:320px;}}`}</style>
           <h3
             className="syne"
             style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, flexShrink: 0 }}
