@@ -76,12 +76,65 @@ const InboxThread = ({ messageId, onOpened, onBack, isMobile }) => {
   );
 };
 
+// ── sender side: private thread with ONE person about my announcement (unlimited back-and-forth) ──
+const SenderThread = ({ messageId, recipientId, onOpened, onBack, isMobile }) => {
+  const base = `/inbox/thread/${messageId}/${recipientId}`;
+  const load = useCallback(async () => {
+    const res = await apiRequest(base);
+    const d = res?.data || {};
+    return { meta: d, replies: d.replies || [] };
+  }, [base]);
+  const poll = useCallback(async (since) => {
+    const res = await apiRequest(`${base}/replies?since_seq=${since}`);
+    return res?.data?.replies || [];
+  }, [base]);
+  const send = useCallback(async (body, cid) => {
+    const res = await apiRequest(`${base}/reply`, "POST", { body, client_msg_id: cid });
+    return res.data;
+  }, [base]);
+
+  const t = useChatThread({ threadKey: `${messageId}:${recipientId}`, load, poll, send, ownSide: "admin" });
+  useEffect(() => { if (t.meta) onOpened?.(); }, [t.meta?.message_id]); // eslint-disable-line
+
+  const m = t.meta;
+  const name = m?.person?.name || "…";
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: isMobile ? "10px 52px 10px 8px" : "12px 56px 12px 16px", borderBottom: `1px solid ${C.border}`, background: C.surface, minHeight: 56 }}>
+        {isMobile && (
+          <button className="btn btn-ghost" onClick={onBack} aria-label="Back" style={{ width: 40, height: 40, padding: 0, flexShrink: 0, justifyContent: "center", touchAction: "manipulation" }}>
+            <span style={{ display: "flex", transform: "rotate(180deg)" }}><Icon name="arrow_right" size={18} /></span>
+          </button>
+        )}
+        <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${C.primary}22`, color: C.primary, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, flexShrink: 0 }}>
+          {name.trim()[0]?.toUpperCase()}
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="syne" style={{ fontSize: 14.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+          <div style={{ fontSize: 11.5, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Re: {m?.title || "…"} · private, only you and school admins</div>
+        </div>
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ChatThread
+          announcement={m ? { id: m.message_id, title: m.title, body: m.body, created_at: m.created_at, created_by_name: m.created_by_name, attachments: m.attachments, label: "Original announcement" } : null}
+          messages={t.messages} ownSide="admin" canReply
+          onSend={t.send} onRetry={t.retry} sending={t.sending} loading={t.loading} error={t.error}
+          placeholder={`Reply to ${name}…`}
+        />
+      </div>
+    </div>
+  );
+};
+
+const itemKey = (c) => (c.type === "thread" ? `${c.message_id}:${c.recipient_id}` : c.message_id);
+
 export const NotificationModal = ({ open, onClose, onUnreadChange }) => {
   const isMobile = useIsMobile();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeId, setActiveId] = useState(null);
+  const [active, setActive] = useState(null); // { type: "announcement"|"thread", messageId, recipientId? }
+  const activeKey = active ? (active.type === "thread" ? `${active.messageId}:${active.recipientId}` : active.messageId) : null;
   const [onlyUnread, setOnlyUnread] = useState(false);
 
   const refreshCount = useCallback(async () => {
@@ -103,7 +156,7 @@ export const NotificationModal = ({ open, onClose, onUnreadChange }) => {
 
   useEffect(() => {
     if (!open) return;
-    setActiveId(null);
+    setActive(null);
     loadList(false);
     refreshCount();
   }, [open]); // eslint-disable-line
@@ -112,24 +165,24 @@ export const NotificationModal = ({ open, onClose, onUnreadChange }) => {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === "Escape") (activeId && isMobile ? setActiveId(null) : onClose?.()); };
+    const onKey = (e) => { if (e.key === "Escape") (active && isMobile ? setActive(null) : onClose?.()); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, activeId, isMobile, onClose]);
+  }, [open, active, isMobile, onClose]);
 
   const visible = useMemo(() => (onlyUnread ? list.filter((c) => c.unread) : list), [list, onlyUnread]);
   const unreadTotal = useMemo(() => list.filter((c) => c.unread).length, [list]);
 
   const onOpened = useCallback(() => {
     // backend ne conversation read mark kar di -> list aur badge refresh
-    setList((p) => p.map((c) => (c.message_id === activeId ? { ...c, unread: 0 } : c)));
+    setList((p) => p.map((c) => (itemKey(c) === activeKey ? { ...c, unread: 0 } : c)));
     refreshCount();
-  }, [activeId, refreshCount]);
+  }, [activeKey, refreshCount]);
 
   if (!open) return null;
 
-  const showList = !isMobile || !activeId;
-  const showThread = !isMobile || !!activeId;
+  const showList = !isMobile || !active;
+  const showThread = !isMobile || !!active;
 
   const closeBtn = (
     <button
@@ -184,27 +237,30 @@ export const NotificationModal = ({ open, onClose, onUnreadChange }) => {
                 </div>
               )}
               {visible.map((c) => {
-                const on = c.message_id === activeId;
-                const col = c.kind === "system" ? C.blue : catColor(c.category);
+                const isThread = c.type === "thread";
+                const on = itemKey(c) === activeKey;
+                const col = isThread ? C.primary : c.kind === "system" ? C.blue : catColor(c.category);
+                // announcement: "You" = recipient side.  thread (I am the sender): "You" = admin side
+                const mineSide = isThread ? "admin" : "recipient";
                 const preview = c.last_reply_body
-                  ? `${c.last_reply_side === "recipient" ? "You: " : ""}${c.last_reply_body}`
+                  ? `${c.last_reply_side === mineSide ? "You: " : ""}${c.last_reply_body}`
                   : c.preview;
                 return (
                   <button
-                    key={c.message_id} onClick={() => setActiveId(c.message_id)}
+                    key={itemKey(c)} onClick={() => setActive({ type: c.type, messageId: c.message_id, recipientId: c.recipient_id })}
                     style={{ width: "100%", textAlign: "left", display: "flex", gap: 11, padding: "12px 14px", cursor: "pointer", fontFamily: "inherit", color: C.text,
                       border: "none", borderBottom: `1px solid ${C.border}`, background: on ? `${C.primary}14` : "transparent", touchAction: "manipulation" }}
                   >
                     <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: `${col}22`, color: col, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Icon name={catIcon(c)} size={18} />
+                      {isThread ? <span style={{ fontWeight: 800, fontSize: 16 }}>{(c.person_name || "?").trim()[0]?.toUpperCase()}</span> : <Icon name={catIcon(c)} size={18} />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: c.unread ? 800 : 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: c.unread ? 800 : 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isThread ? c.person_name : c.title}</div>
                         <span style={{ fontSize: 11, color: c.unread ? C.primary : C.textMuted, fontWeight: c.unread ? 700 : 500, flexShrink: 0 }}>{shortTime(c.last_activity_at || c.created_at)}</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-                        <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: c.unread ? C.text : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{preview}</div>
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: c.unread ? C.text : C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isThread ? `Re: ${c.title} · ` : ""}{preview}</div>
                         {c.unread ? <span style={{ width: 9, height: 9, borderRadius: "50%", background: C.primary, flexShrink: 0 }} /> : null}
                       </div>
                     </div>
@@ -219,8 +275,12 @@ export const NotificationModal = ({ open, onClose, onUnreadChange }) => {
         {/* ── open conversation ── */}
         {showThread && (
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
-            {activeId ? (
-              <InboxThread key={activeId} messageId={activeId} onOpened={onOpened} onBack={() => setActiveId(null)} isMobile={isMobile} />
+            {active ? (
+              active.type === "thread" ? (
+                <SenderThread key={activeKey} messageId={active.messageId} recipientId={active.recipientId} onOpened={onOpened} onBack={() => setActive(null)} isMobile={isMobile} />
+              ) : (
+                <InboxThread key={activeKey} messageId={active.messageId} onOpened={onOpened} onBack={() => setActive(null)} isMobile={isMobile} />
+              )
             ) : (
               <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: C.textMuted, gap: 8, padding: 24, textAlign: "center" }}>
                 <Icon name="message" size={34} />

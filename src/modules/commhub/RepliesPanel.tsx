@@ -1,7 +1,7 @@
 // @ts-nocheck
 // Admin side of announcement chat: every person who replied has ONE private thread with the admin side.
 // Visible only to school_admin / the sender (backend enforces it) — recipients never see each other.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
 import { ChatThread } from "../../components/chat/ChatThread";
@@ -84,6 +84,15 @@ export const RepliesPanel = ({ message, onClose, onChanged }) => {
   }, [message.id]);
 
   useEffect(() => { loadThreads(false); }, [loadThreads]);
+
+  // desktop: pehli baar list aate hi sabse zaroori thread (unread / unanswered) khud khul jaye
+  const autoPicked = useRef(false);
+  useEffect(() => {
+    if (autoPicked.current || isMobile || !threads.length) return;
+    autoPicked.current = true;
+    const first = threads.find((t) => t.unread) || threads.find((t) => t.unanswered) || threads[0];
+    if (first) setActiveId(first.recipient_id);
+  }, [threads, isMobile]);
   usePolling(() => loadThreads(true), 15000, true);
 
   useEffect(() => {

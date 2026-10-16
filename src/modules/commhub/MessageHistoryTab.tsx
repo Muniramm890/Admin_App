@@ -25,13 +25,14 @@ export const MessageHistoryTab = ({ onCompose }) => {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
 
-  const load = async () => {
-    setLoading(true);
+  // silent=true: background refresh (no full-screen loader) — otherwise the Replies panel gets unmounted mid-chat
+  const load = async (silent) => {
+    if (!silent) setLoading(true);
     try {
       const res = await apiRequest("/comm/messages?limit=30");
       setMessages(Array.isArray(res?.data) ? res.data : []);
     } catch (e) { console.error(e.message); }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
@@ -162,7 +163,7 @@ export const MessageHistoryTab = ({ onCompose }) => {
         )}
       </div>
 
-      {repliesFor && <RepliesPanel message={repliesFor} onClose={() => setRepliesFor(null)} onChanged={load} />}
+      {repliesFor && <RepliesPanel message={repliesFor} onClose={() => setRepliesFor(null)} onChanged={() => load(true)} />}
 
       {/* Detail */}
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.title || ""} width={560}>
