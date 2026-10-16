@@ -113,13 +113,11 @@ export const injectStyles = () => {
     .topbar-title > div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .topbar-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
     .topbar-session{width:150px;}
-    .drawer-footer{display:none;}
     @media(max-width:768px){
       .topbar{padding:8px 12px;gap:8px;}
       .topbar-right{gap:6px;}
       .topbar-session{width:92px;font-size:12px!important;padding:7px 6px!important;}
       .topbar-desktop-only{display:none!important;}
-      .drawer-footer{display:flex;}
     }
     @media(max-width:768px){
       .sidebar-desktop{display:none!important;}

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { uploadToCloudinary } from "../../api/uploads";
 import { useDialog } from "../../contexts/DialogContext";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { C, getSavedTheme } from "../../theme/theme";
 import { ROLE_META } from "../../utils/roles";
 
@@ -64,8 +65,21 @@ const strengthOf = (pw) => {
 
 const EMPTY_PW = { currentPassword: "", newPassword: "", confirmPassword: "" };
 
-export const ProfileModal = ({ open, onClose }) => {
-  const { dialogAlert } = useDialog();
+// Mobile (<=768px): full-screen sheet + extra "Account" tab (theme + logout). Desktop unchanged.
+export const ProfileModal = ({ open, onClose, onLogout, themeMode, onToggleTheme }) => {
+  const { dialogAlert, dialogConfirm } = useDialog();
+  const isMobile = useIsMobile();
+  const showAccountTab = isMobile && typeof onLogout === "function";
+
+  // screen resize hone par (mobile -> desktop) Account tab hat jaye to Personal par wapas
+  useEffect(() => { if (!showAccountTab && tab === "account") setTab("personal"); }, [showAccountTab]); // eslint-disable-line
+
+  const handleLogoutClick = async () => {
+    const ok = await dialogConfirm("Do you want to log out of your account?", "Logout");
+    if (!ok) return;
+    onClose?.();
+    onLogout();
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -255,6 +269,24 @@ export const ProfileModal = ({ open, onClose }) => {
     .pf-btn.ghost{background:transparent;color:${C.textMuted};border:1px solid ${C.border};}
     .pf-btn.ghost:hover{background:${C.surfaceAlt};color:${C.text};}
     .pf-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;}
+    .pf-btn.danger{background:${C.red}1a;color:${C.red};border:1px solid ${C.red}55;}
+    .pf-btn.danger:hover{background:${C.red}2e;}
+    .pf-mobile{padding:0!important;align-items:stretch!important;}
+    .pf-mobile .pf-panel{max-width:none;max-height:none;height:100vh;height:100dvh;border-radius:0;border:none;box-shadow:none;animation:pfTab .22s ease;}
+    .pf-mobile .pf-hero{padding:14px 14px 12px;}
+    .pf-mobile .pf-hero-row{flex-direction:row!important;text-align:left!important;gap:12px!important;align-items:center!important;}
+    .pf-mobile .pf-hero-row .pf-meta{align-items:flex-start!important;gap:5px!important;}
+    .pf-mobile .pf-avatar-wrap,.pf-mobile .pf-avatar{width:64px;height:64px;}
+    .pf-mobile .pf-avatar{font-size:22px;border-width:3px;}
+    .pf-mobile .pf-cam{width:28px;height:28px;}
+    .pf-mobile .pf-hero .syne{font-size:18px!important;}
+    .pf-mobile .pf-close{top:10px;right:10px;}
+    .pf-mobile .pf-stat{min-width:0;flex:1 1 44%;padding:8px 10px;}
+    .pf-mobile .pf-tabs{margin:10px 12px 0;gap:4px;padding:4px;}
+    .pf-mobile .pf-tab{padding:9px 6px;font-size:12.5px;gap:5px;}
+    .pf-mobile .pf-body{padding:14px 12px 6px;}
+    .pf-mobile .pf-input{font-size:16px;}
+    .pf-mobile .pf-foot{padding:10px 12px calc(10px + env(safe-area-inset-bottom));}
     @media(max-width:640px){
       .pf-hero{padding:22px 18px 18px;} .pf-hero-row{flex-direction:column;align-items:center!important;text-align:center;}
       .pf-hero-row .pf-meta{align-items:center!important;}
@@ -284,7 +316,7 @@ export const ProfileModal = ({ open, onClose }) => {
   );
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 1000 }} onClick={handleClose}>
+    <div className={`modal-overlay ${isMobile ? "pf-mobile" : ""}`} style={{ zIndex: 1000 }} onClick={handleClose}>
       <style>{css}</style>
       <div className="pf-panel" onClick={(e) => e.stopPropagation()}>
         {loading ? (
@@ -342,6 +374,11 @@ export const ProfileModal = ({ open, onClose }) => {
               <button className={`pf-tab ${tab === "security" ? "on" : ""}`} onClick={() => setTab("security")}>
                 <Ico name="shield" size={15} /> Security
               </button>
+              {showAccountTab && (
+                <button className={`pf-tab ${tab === "account" ? "on" : ""}`} onClick={() => setTab("account")}>
+                  <Ico name="id" size={15} /> Account
+                </button>
+              )}
             </div>
 
             {/* ── BODY ── */}
@@ -388,6 +425,26 @@ export const ProfileModal = ({ open, onClose }) => {
                     </div>
                     <div className="pf-note"><Ico name="lock" size={12} /> Email cannot be changed. Contact your school admin if it needs an update.</div>
                   </div>
+                </div>
+              ) : tab === "account" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div className="pf-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <div className="syne" style={{ fontSize: 15, fontWeight: 700 }}>Appearance</div>
+                      <div style={{ fontSize: 12.5, color: C.textMuted, marginTop: 2 }}>Switch between light and dark theme.</div>
+                    </div>
+                    <button className="pf-btn ghost" onClick={onToggleTheme} style={{ flexShrink: 0 }}>
+                      {themeMode === "dark" ? "☀️ Light" : "🌙 Dark"}
+                    </button>
+                  </div>
+                  <div className="pf-card">
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.textMuted, marginBottom: 6 }}>Signed in as</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, wordBreak: "break-word" }}>{form.full_name || "—"}</div>
+                    <div style={{ fontSize: 12.5, color: C.textMuted, wordBreak: "break-all" }}>{profile?.email || "—"}</div>
+                  </div>
+                  <button className="pf-btn danger" onClick={handleLogoutClick} style={{ width: "100%", padding: "14px 22px" }}>
+                    Logout
+                  </button>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -446,6 +503,7 @@ export const ProfileModal = ({ open, onClose }) => {
             </div>
 
             {/* ── FOOTER ── */}
+            {tab !== "account" && (
             <div className="pf-foot">
               {tab === "personal" ? (
                 <>
@@ -472,6 +530,7 @@ export const ProfileModal = ({ open, onClose }) => {
                 </>
               )}
             </div>
+            )}
           </>
         )}
       </div>

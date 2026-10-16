@@ -234,17 +234,6 @@ export const SchoolERP = () => {
               userRole={user?.role}
           isAllowed={isAllowed}
             />
-            <div
-              className="drawer-footer"
-              style={{ position: "sticky", bottom: 0, gap: 8, padding: 12, background: C.surface, borderTop: `1px solid ${C.border}` }}
-            >
-              <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center" }} onClick={toggleTheme}>
-                {themeMode === "dark" ? "☀️ Light" : "🌙 Dark"}
-              </button>
-              <button className="btn btn-danger" style={{ flex: 1, justifyContent: "center" }} onClick={logout}>
-                <Icon name="logout" size={16} /> Logout
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -391,7 +380,13 @@ export const SchoolERP = () => {
         </div>
       </div>
 
-      <ProfileModal open={showProfileModal} onClose={() => setShowProfileModal(false)} />
+      <ProfileModal
+        open={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onLogout={logout}
+        themeMode={themeMode}
+        onToggleTheme={toggleTheme}
+      />
       <NotificationModal open={showNotifModal} onClose={() => setShowNotifModal(false)} onUnreadChange={setUnreadCount} />
     </div>
   );
