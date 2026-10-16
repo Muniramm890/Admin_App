@@ -139,8 +139,8 @@ export const PayrollModule = ({ school }) => {
       {tab === "staff" && (
         <div className="slide-in">
           {loading ? <div className="card pulse" style={{ padding: 40, textAlign: "center" }}>Loading staff...</div> : (
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div className="card" style={{ padding: 0, overflowX: "auto", minWidth: 0 }}>
+              <table style={{ width: "100%", minWidth: 640, borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: C.surfaceAlt, textAlign: "left" }}>
                     {["Staff", "Designation", "Gross Salary", "Bank", "Status", ""].map((h) => (
