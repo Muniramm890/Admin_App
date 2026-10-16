@@ -1,7 +1,7 @@
 // FILE: teacher-app/src/contexts/DialogContext.tsx
 // Source: admin App.tsx -> DialogContext, DialogProvider, useDialog
 // @ts-nocheck
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Modal } from "../components/ui/Modal";
 import { C } from "../theme/theme";
 
@@ -10,15 +10,25 @@ export const DialogContext = createContext(null);
 export const DialogProvider = ({ children }) => {
   const [state, setState] = useState(null); // { type, title, message, resolve }
 
-  const dialogAlert = (message, title = "Notice") =>
-    new Promise((resolve) => {
-      setState({ type: "alert", title, message, resolve });
-    });
+  // useCallback([]): in dono ki identity kabhi nahi badalti, isliye jin hooks ke dependency
+  // array me dialogAlert hai wo dialog khulne/band hone par dobara fetch nahi karte.
+  const dialogAlert = useCallback(
+    (message, title = "Notice") =>
+      new Promise((resolve) => {
+        setState({ type: "alert", title, message, resolve });
+      }),
+    []
+  );
 
-  const dialogConfirm = (message, title = "Please Confirm") =>
-    new Promise((resolve) => {
-      setState({ type: "confirm", title, message, resolve });
-    });
+  const dialogConfirm = useCallback(
+    (message, title = "Please Confirm") =>
+      new Promise((resolve) => {
+        setState({ type: "confirm", title, message, resolve });
+      }),
+    []
+  );
+
+  const ctxValue = useMemo(() => ({ dialogAlert, dialogConfirm }), [dialogAlert, dialogConfirm]);
 
     const close = (result) => {
       state?.resolve(result);
@@ -35,10 +45,10 @@ export const DialogProvider = ({ children }) => {
         dialogAlert(msg, isError ? "⚠ Error" : "Notice");
       };
       return () => { window.alert = originalAlert; };
-    }, []); // eslint-disable-line
+    }, [dialogAlert]);
   
     return (
-      <DialogContext.Provider value={{ dialogAlert, dialogConfirm }}>
+      <DialogContext.Provider value={ctxValue}>
       {children}
       <Modal
         open={!!state}

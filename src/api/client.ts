@@ -22,7 +22,14 @@ export const setAuthLogoutRef = (fn) => { authLogoutRef = fn; }; // [teacher-app
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
       if (response.status === 204) return null;
-      const data = await response.json();
+      // Azure cold-start / 502 / 503 par HTML aata hai -> response.json() "Unexpected token <" se phat jata tha
+      let data = null;
+      try { data = await response.json(); } catch (_) { data = null; }
+      if (data === null) {
+        if (response.status === 401) { /* neeche wala 401 block handle karega */ }
+        else throw new Error(response.ok ? "Invalid server response" : `Server temporarily unavailable (${response.status}). Please try again.`);
+        data = {};
+      }
 
       if (response.status === 401) {
         localStorage.removeItem("erp_token");

@@ -1,14 +1,14 @@
 // FILE: teacher-app/src/modules/arrangement/TodayArrangementTab.tsx
 // Source: admin App.tsx -> TodayArrangementTab [11901-12095]
 // @ts-nocheck
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { FormRow } from "../../components/ui/FormRow";
 import { Icon } from "../../components/ui/Icon";
 import { KpiCard } from "../../components/ui/KpiCard";
 import { useDialog } from "../../contexts/DialogContext";
 import { TeacherArrangementCard } from "./TeacherArrangementCard";
-import { DOW_NAMES, autoAssignSuggested, buildArrangementPlan } from "./helpers";
+import { DOW_NAMES, autoAssignSuggested, buildArrangementPlan, normalizeDraft } from "./helpers";
 import { C } from "../../theme/theme";
 import { todayISO } from "../../utils/date";
 
@@ -19,24 +19,33 @@ export const TodayArrangementTab = ({ onSaved }) => {
   const { dialogAlert, dialogConfirm } = useDialog();
   const [date, setDate] = useState(todayISO());
   const [draft, setDraft] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // pehle fetch se pehle "No arrangement needed" ka galat flash na dikhe
   const [selections, setSelections] = useState({}); // { [gapKey]: substitute_teacher_id }
   const [saving, setSaving] = useState(false);
   
 
+  const reqId = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+
   const loadDraft = React.useCallback(async () => {
+    if (!date) return; // khali date par API call mat karo
+    const my = ++reqId.current; // sirf sabse naye request ka response apply hoga
     setLoading(true);
     setSelections({});
     try {
       const res = await apiRequest(`/arrangement/draft?date=${date}`);
-      setDraft(res.data);
+      if (!mounted.current || my !== reqId.current) return; // stale / unmounted
+      const safe = normalizeDraft(res?.data);
+      if (!safe) throw new Error("Invalid arrangement data received from server.");
+      setDraft(safe);
       // Seed default selections with top suggested match, right away
-      const rawPlan = buildArrangementPlan(res.data);
+      const rawPlan = buildArrangementPlan(safe);
       setSelections(autoAssignSuggested(rawPlan.gaps));
     } catch (e) {
-      dialogAlert("Failed to load arrangement draft: " + e.message, "Error");
+      if (mounted.current && my === reqId.current) dialogAlert("Failed to load arrangement draft: " + e.message, "Error");
     } finally {
-      setLoading(false);
+      if (mounted.current && my === reqId.current) setLoading(false);
     }
   }, [date, dialogAlert]);
 
@@ -74,7 +83,7 @@ export const TodayArrangementTab = ({ onSaved }) => {
       }
       groups[g.original_teacher_id].periods.push(g);
     });
-    return Object.values(groups).sort((a, b) => a.teacher_name.localeCompare(b.teacher_name));
+    return Object.values(groups).sort((a, b) => String(a.teacher_name || "").localeCompare(String(b.teacher_name || "")));
   }, [gapsWithLiveSelections]);
 
   const filledCount = gapsWithLiveSelections.filter((g) => selections[g.key] || g.confirmed_substitute_id).length;
@@ -151,7 +160,7 @@ export const TodayArrangementTab = ({ onSaved }) => {
  
 
   const periodLabel = (id) => {
-    const p = draft?.period_slots.find((x) => x.id === id);
+    const p = draft?.period_slots?.find((x) => x.id === id);
     return p ? `${p.label} • ${p.start_time?.slice(0, 5)}–${p.end_time?.slice(0, 5)}` : "Period";
   };
 
@@ -172,7 +181,7 @@ export const TodayArrangementTab = ({ onSaved }) => {
       </div>
 
       {loading ? (
-        <div className="card pulse" style={{ padding: 40, textAlign: "center" }}>Scanning timetable for {DOW_NAMES[new Date(date).getDay()]}...</div>
+        <div className="card pulse" style={{ padding: 40, textAlign: "center" }}>Scanning timetable for {DOW_NAMES[new Date(`${date}T00:00:00`).getDay()] || ""}...</div>
       ) : plan.gaps.length === 0 ? (
         <div className="card" style={{ padding: 40, textAlign: "center", color: C.green }}>
           <Icon name="check" size={28} color={C.green} />

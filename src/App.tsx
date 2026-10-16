@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { SplashScreen } from "./components/ui/SplashScreen";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { DataProvider } from "./contexts/DataContext";
 import { DialogProvider } from "./contexts/DialogContext";
@@ -36,14 +37,16 @@ const MainLayout = () => {
 // Naya Main App Export
 export default function App() {
   return (
-    <DialogProvider>
-      <AuthProvider>
-        <DataProvider>
-          <SessionProvider>
-            <MainLayout />
-          </SessionProvider>
-        </DataProvider>
-      </AuthProvider>
-    </DialogProvider>
+    <ErrorBoundary label="app" fullscreen>
+      <DialogProvider>
+        <AuthProvider>
+          <DataProvider>
+            <SessionProvider>
+              <MainLayout />
+            </SessionProvider>
+          </DataProvider>
+        </AuthProvider>
+      </DialogProvider>
+    </ErrorBoundary>
   );
 }

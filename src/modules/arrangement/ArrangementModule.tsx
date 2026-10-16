@@ -1,7 +1,7 @@
 // FILE: teacher-app/src/modules/arrangement/ArrangementModule.tsx
 // Source: admin App.tsx -> ArrangementModule [12178-12301]
 // @ts-nocheck
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { apiRequest } from "../../api/client";
 import { KpiCard } from "../../components/ui/KpiCard";
@@ -20,15 +20,21 @@ export const ArrangementModule = ({ school }) => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const reqId = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+
   const loadHistory = React.useCallback(async () => {
+    const my = ++reqId.current; // stale response guard
     setLoading(true);
     try {
       const res = await apiRequest(`/arrangement/history?from=${daysAgoISO(90)}&to=${todayISO()}`);
-      setHistory(res?.data || []);
+      if (!mounted.current || my !== reqId.current) return;
+      setHistory(Array.isArray(res?.data) ? res.data : []); // non-array response par crash nahi
     } catch (e) {
-      dialogAlert("Failed to load history: " + e.message, "Error");
+      if (mounted.current && my === reqId.current) dialogAlert("Failed to load history: " + e.message, "Error");
     } finally {
-      setLoading(false);
+      if (mounted.current && my === reqId.current) setLoading(false);
     }
   }, [dialogAlert]);
 
@@ -80,7 +86,7 @@ export const ArrangementModule = ({ school }) => {
             <KpiCard label="Substitutions Today" value={overview.todayCount} icon="calendar" color={C.primary} />
             <KpiCard label="Last 30 Days" value={overview.last30Count} icon="refresh" color={C.blue} />
             <KpiCard label="Most Loaded Teacher" value={overview.workload[0]?.name || "—"} sub={overview.workload[0] ? `${overview.workload[0].count} periods` : ""} icon="users" color={C.yellow} />
-            <KpiCard label="Top Affected Subject" value={overview.subjectChart.sort((a, b) => b.value - a.value)[0]?.name || "—"} icon="book" color={C.green} />
+            <KpiCard label="Top Affected Subject" value={[...overview.subjectChart].sort((a, b) => b.value - a.value)[0]?.name || "—"} icon="book" color={C.green} />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginBottom: 16 }}>

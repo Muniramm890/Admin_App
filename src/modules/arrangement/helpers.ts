@@ -14,8 +14,25 @@ export const DOW_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Fr
 export const STATUS_LABEL_MAP = { A: "Absent", L: "On Leave", OD: "On Duty" };
 
  // ── CORE ENGINE: build today's gaps + free-teacher suggestions from raw data ──
-export function buildArrangementPlan(draft) {
-  if (!draft) return { gaps: [], teacherMap: {} };
+// Backend ka draft kabhi partial/malformed aaye to bhi render crash na ho:
+// har array default [] ho jata hai, aur sirf valid object hi aage jata hai.
+export function normalizeDraft(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const arr = (v) => (Array.isArray(v) ? v : []);
+  return {
+    ...raw,
+    period_slots: arr(raw.period_slots),
+    teachers: arr(raw.teachers),
+    attendance: arr(raw.attendance),
+    timetable: arr(raw.timetable),
+    subject_teachers: arr(raw.subject_teachers),
+    existing_substitutions: arr(raw.existing_substitutions),
+  };
+}
+
+export function buildArrangementPlan(rawDraft) {
+  const draft = normalizeDraft(rawDraft);
+  if (!draft) return { gaps: [], teacherMap: {}, unavailableCount: 0 };
 
   const teacherMap = {};
   draft.teachers.forEach((t) => { teacherMap[t.teacher_id] = t; });
@@ -76,7 +93,7 @@ export function buildArrangementPlan(draft) {
         key: `${te.period_slot_id}_${te.section_id}`,
         period_slot_id: te.period_slot_id, section_id: te.section_id, subject_id: te.subject_id,
         section_name: te.section_name, class_name: te.class_name, subject_name: te.subject_name || "Free Period",
-        room_no: te.room_no, original_teacher_id: te.teacher_id, original_teacher_name: teacherMap[te.teacher_id]?.full_name,
+        room_no: te.room_no, original_teacher_id: te.teacher_id, original_teacher_name: teacherMap[te.teacher_id]?.full_name || "Unknown / inactive teacher",
         original_status: unavailable[te.teacher_id],
         suggested, others,
         confirmed_substitute_id: existing?.substitute_teacher_id || null,

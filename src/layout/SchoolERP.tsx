@@ -13,6 +13,7 @@ import { ProfileModal } from "../components/modals/ProfileModal";
 import { Icon } from "../components/ui/Icon";
 import { useAuth } from "../contexts/AuthContext";
 import { useSession } from "../contexts/SessionContext";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { AnalyticsModule } from "../modules/analytics/AnalyticsModule";
 import { ArrangementModule } from "../modules/arrangement/ArrangementModule";
 import { AttendanceModule } from "../modules/attendance/AttendanceModule";
@@ -382,7 +383,9 @@ export const SchoolERP = () => {
 
          {/* Module Area */}
          <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-          {renderModule()}
+          <ErrorBoundary label={activeModule} resetKeys={[activeModule, academicYearId]}>
+            {renderModule()}
+          </ErrorBoundary>
         </div>
       </div>
 
