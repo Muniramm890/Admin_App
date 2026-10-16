@@ -189,7 +189,7 @@ export const TodayArrangementTab = ({ onSaved }) => {
         </div>
       ) : (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+          <div className="grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 16, marginBottom: 20 }}>
             <KpiCard label="Teachers Unavailable" value={plan.unavailableCount} icon="alert" color={C.red} />
             <KpiCard label="Periods Needing Cover" value={plan.gaps.length} icon="calendar" color={C.yellow} />
             <KpiCard label="Filled" value={`${filledCount} / ${plan.gaps.length}`} sub={pendingCount > 0 ? `${pendingCount} pending` : "All covered"} icon="check" color={pendingCount === 0 ? C.green : C.blue} />
