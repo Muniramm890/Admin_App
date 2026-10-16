@@ -119,6 +119,11 @@ export const injectStyles = () => {
       .topbar-session{width:92px;font-size:12px!important;padding:7px 6px!important;}
       .topbar-desktop-only{display:none!important;}
     }
+    /* [teacher-app] Global "auto-fit" row for two-up panels (charts, cards). Unlike .grid-2 it looks at the space that is
+       actually available (the desktop sidebar takes ~230px), not just the screen width: two columns only when each can be
+       >= 360px wide, otherwise it stacks. Use: <div className="grid-auto-2"> ... </div>  (children shrink safely, min-width:0) */
+    .grid-auto-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:16px;}
+    .grid-auto-2>*{min-width:0;}
     @media(max-width:768px){
       .sidebar-desktop{display:none!important;}
       .main-content{margin-left:0!important;}

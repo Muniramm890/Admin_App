@@ -103,7 +103,8 @@ export const PayrollModule = ({ school }) => {
             <KpiCard label="Setup Pending" value={overview.staffSetupPending} sub="staff without salary structure" icon="alert" color={C.yellow} />
           </div>
 
-          <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr)", gap: 16 }}>
+          {/* [teacher-app] was grid-2 (stacks only below 768px screen width) -> grid-auto-2 stacks whenever the panel width is too small, incl. tablet / landscape with the sidebar open */}
+          <div className="grid-auto-2">
             <div className="card" style={{ padding: 20, minWidth: 0 }}>
               <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>Payroll Cost Trend (Last 6 Months)</h4>
               <ResponsiveContainer width="100%" height={260}>
