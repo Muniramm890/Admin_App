@@ -66,13 +66,13 @@ export const FeeReceiptsTab = ({ setReceiptViewerUrl }) => {
         <div className="syne" style={{ fontWeight: 800, color: C.green, fontSize: 15 }}>{rupees(totalShown)} collected</div>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="card" style={{ padding: 0, overflowX: "auto", minWidth: 0 }}>
         {loading ? (
           <div className="pulse" style={{ padding: 40, textAlign: "center", color: C.primary }}>Loading transactions…</div>
         ) : rows.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>No transactions found.</div>
         ) : (
-          <table className="table">
+          <table className="table" style={{ minWidth: 820, whiteSpace: "nowrap" }}>
             <thead><tr><th>Receipt</th><th>Student</th><th>Date</th><th>Amount</th><th>Method</th><th>Collected By</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {rows.map((p) => (
