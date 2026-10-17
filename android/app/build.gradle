@@ -16,8 +16,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Sideload (direct install) signing: SAME key every build => new APKs install OVER the old app.
+    // Play Store ke liye alag upload key banani hogi (is key ko store par use mat karna).
+    signingConfigs {
+        sideload {
+            storeFile file('sideload.keystore')
+            storePassword 'schooloffice'
+            keyAlias 'sideload'
+            keyPassword 'schooloffice'
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.sideload
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

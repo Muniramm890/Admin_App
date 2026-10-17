@@ -29,3 +29,4 @@ ios/App/Pods/
 ios/App/App/public/
 *.keystore
 *.jks
+!android/app/sideload.keystore
