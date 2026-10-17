@@ -15,6 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSession } from "../contexts/SessionContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { setNativeTheme } from "../native";
 import { AnalyticsModule } from "../modules/analytics/AnalyticsModule";
 import { ArrangementModule } from "../modules/arrangement/ArrangementModule";
 import { AttendanceModule } from "../modules/attendance/AttendanceModule";
@@ -78,6 +79,7 @@ export const SchoolERP = () => {
   const toggleTheme = () => {
     const next = themeMode === "dark" ? "light" : "dark";
     applyTheme(next);     // C object mutate hota hai
+    setNativeTheme(next); // app me status bar icons (web par no-op)
     setThemeMode(next);   // ye re-render trigger karta hai → saare children naye C values utha lete hain
   };
 
@@ -215,6 +217,7 @@ export const SchoolERP = () => {
           style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex" }}
         >
           <div
+            data-native-back
             style={{ background: "#00000077", flex: 1 }}
             onClick={() => setMobileSidebarOpen(false)}
           />

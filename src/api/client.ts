@@ -2,7 +2,9 @@
 // Source: admin App.tsx -> API_BASE_URL + apiRequest (same backend, same token key 'erp_token')
 // @ts-nocheck
 
+// .env me VITE_API_URL=https://... dene par wo use hoga (test/live ke liye alag URL); warna neeche wala default.
 export const API_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) ||
   "https://waapi-h6e7b5g9cmfthkhn.centralindia-01.azurewebsites.net/api"; // 🔴 YAHAN APNI AZURE WEB APP KI LINK DAALEIN
 
   let authLogoutRef = null; // module-level, AuthProvider isko set karega
