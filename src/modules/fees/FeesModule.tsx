@@ -2,6 +2,7 @@
 // Source: admin App.tsx -> FeesModule [15193-15666]
 // @ts-nocheck
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
@@ -12,12 +13,16 @@ import { CollectPaymentModal } from "./CollectPaymentModal";
 import { FeeReceiptsTab } from "./FeeReceiptsTab";
 import { FeeStructuresTab } from "./FeeStructuresTab";
 import { StudentPassbookModal } from "./StudentPassbookModal";
-import { rupees } from "./helpers";
+import { CF_PENDING_PREFIX, rupees, verifyCashfreeWithRetry } from "./helpers";
+import { useDialog } from "../../contexts/DialogContext";
 import { C } from "../../theme/theme";
 
 // ═══════════════════════════════════════════════════════════════
 // MODULE: FEE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
+// Module-level (not a ref): the module can be mounted more than once while the app boots, but each Cashfree return must be verified only once.
+const handledCashfreeReturns = new Set();
+
 export const FeesModule = ({ school }) => {
   const [tab, setTab] = useState("overview");
   const [filterClass, setFilterClass] = useState("");
@@ -66,6 +71,42 @@ export const FeesModule = ({ school }) => {
   }, [tab, filterClass, filterStatus]); // eslint-disable-line
 
   const refreshAll = () => { loadFeeOverview(); loadFeeAccounts(); };
+
+  // ── Cashfree return page: /fees/cashfree-return?order_id=... ─────────────────────────────────────────
+  // Cashfree sends the browser here after redirect-style payments (UPI app, 3-D Secure, popup blocked).
+  // The in-page verify never ran in that case, so verify here (the backend is idempotent: no double recording).
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { dialogAlert } = useDialog();
+  const returnOrderId = location.pathname.endsWith("/cashfree-return")
+    ? new URLSearchParams(location.search).get("order_id") : null;
+  useEffect(() => {
+    if (!returnOrderId || handledCashfreeReturns.has(returnOrderId)) return;
+    handledCashfreeReturns.add(returnOrderId);
+    (async () => {
+      let ctx = {};
+      try { ctx = JSON.parse(localStorage.getItem(CF_PENDING_PREFIX + returnOrderId) || "{}"); } catch (_) {}
+      try {
+        await verifyCashfreeWithRetry({
+          cf_order_id: returnOrderId,
+          student_id: ctx.student_id, // optional: the backend takes it from the Cashfree order if missing
+          amount_paise: ctx.amount_paise,
+          remarks: ctx.remarks || null,
+          breakdown: ctx.breakdown,
+        });
+        try { localStorage.removeItem(CF_PENDING_PREFIX + returnOrderId); } catch (_) {}
+        await dialogAlert("Payment verified and recorded.", "Payment successful");
+      } catch (e) {
+        await dialogAlert(
+          "We could not confirm this payment: " + (e.message || "unknown error").replace(/\.+$/, "") +
+          ". If money was deducted, check the Receipts tab in a minute before collecting again.",
+          "Payment not confirmed"
+        );
+      }
+      navigate("/fees", { replace: true });
+      refreshAll();
+    })();
+  }, [returnOrderId]); // eslint-disable-line
 
   const monthlyData = (overviewData?.weekly || []).map((w) => ({
     month: `Wk ${new Date(w.week_start).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`,
