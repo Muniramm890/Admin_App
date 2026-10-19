@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "tech.schooloffice.teacher",
-  appName: "School Office Teacher",
+  appName: "School Office Admin",
   webDir: "dist",
   backgroundColor: "#0B0D14", // status bar / system area ke peeche dark theme ka rang
   android: {

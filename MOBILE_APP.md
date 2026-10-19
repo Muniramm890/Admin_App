@@ -1,4 +1,4 @@
-# Android app (Capacitor)
+# School Office Admin — Android app (Capacitor)
 
 Same React code = web + Android app. Web par kuch nahi badla (native code `Capacitor.isNativePlatform()` se guarded hai).
 
@@ -17,7 +17,7 @@ Sirf code sync karna ho: `npm run cap:sync`
 ## Play Store ke liye
 - Android Studio -> Build -> Generate Signed Bundle (AAB). **Keystore file kho mat dena** (git me mat daalna, `.gitignore` me hai).
 - App icon/splash abhi Capacitor ka default hai. Apna logo 1024x1024 se: `npx @capacitor/assets generate --android`.
-- `appId`: `tech.schooloffice.teacher` (`capacitor.config.ts`). Store par ek baar chhapne ke baad badalna mushkil hai.
+- `appId`: `tech.schooloffice.teacher` (`capacitor.config.ts`) — purane install ke upar update chadhta rahe isliye nahi badla; app ka naam "School Office Admin" hai.
 
 ## API URL
 Default `src/api/client.ts` me hai. Alag URL ke liye `.env`: `VITE_API_URL=https://.../api`
