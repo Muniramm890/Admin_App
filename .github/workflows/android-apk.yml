@@ -1,5 +1,6 @@
 name: Build Android APK
 
+# Phone se install karne wala APK: Releases -> "Android APK (latest)" se download karo.
 on:
   workflow_dispatch:
   push:
@@ -21,21 +22,25 @@ permissions:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      - name: Prepare Android SDK (preinstalled on ubuntu-24.04)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" || true
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -47,10 +52,20 @@ jobs:
         run: npx cap sync android
 
       - name: Build APK
+        shell: bash
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee ../build.log
+
+      - name: Show Gradle error (as annotation)
+        if: failure()
+        run: |
+          if [ -f build.log ]; then
+            MSG=$(grep -n -i -E "What went wrong|FAILURE|error:|Could not|not found|SDK location|license|Exception" build.log | head -25 | tr '\n' '|')
+            TAIL=$(tail -n 25 build.log | tr '\n' '|')
+            echo "::error title=Gradle build failed::${MSG} --- TAIL: ${TAIL}"
+          fi
 
       - name: Name the APK
         run: cp android/app/build/outputs/apk/release/app-release.apk SchoolOffice-Teacher.apk
