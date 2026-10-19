@@ -6,7 +6,7 @@ import { apiRequest } from "../../api/client";
 import { FormGrid } from "../../components/ui/FormGrid";
 import { FormRow } from "../../components/ui/FormRow";
 import { Modal } from "../../components/ui/Modal";
-import { CASHFREE_MODE, PAYMENT_METHODS, RAZORPAY_METHODS, loadCashfreeScript, loadRazorpayScript, rupees, toPaise } from "./helpers";
+import { CASHFREE_MODE, CF_PENDING_PREFIX, PAYMENT_METHODS, RAZORPAY_METHODS, loadCashfreeScript, loadRazorpayScript, rupees, toPaise, verifyCashfreeWithRetry } from "./helpers";
 import { C } from "../../theme/theme";
 import { todayISO } from "../../utils/date";
 
@@ -199,6 +199,13 @@ const handleCashfreePay = async () => {
     const order = orderRes?.data;
     if (!order?.payment_session_id) throw new Error("Could not create payment order");
 
+    // Remember what is being paid: if Cashfree redirects the browser away, /fees/cashfree-return finishes the job with this.
+    try {
+      localStorage.setItem(CF_PENDING_PREFIX + order.order_id, JSON.stringify({
+        student_id: account.student_id, amount_paise: totalPayingPaise, remarks: remarks || null, breakdown, ts: Date.now(),
+      }));
+    } catch (_) { /* storage unavailable -> return page falls back to a lump-sum record */ }
+
     const cashfree = window.Cashfree({ mode: CASHFREE_MODE });
     const result = await cashfree.checkout({
       paymentSessionId: order.payment_session_id,
@@ -206,23 +213,29 @@ const handleCashfreePay = async () => {
     });
 
     if (result?.error) {
+      try { localStorage.removeItem(CF_PENDING_PREFIX + order.order_id); } catch (_) {}
       setError(`Payment failed: ${result.error.message || "Try again"}`);
       setRzpLoading(false);
       return;
     }
 
+    // Cashfree is sending the browser to the return URL (UPI app / 3-D Secure / popup blocked):
+    // this page is about to unload and /fees/cashfree-return will verify the payment.
+    if (result?.redirect) return;
+
     setSaving(true);
     try {
-      await apiRequest("/payments/cashfree/verify", "POST", {
+      await verifyCashfreeWithRetry({
         cf_order_id: order.order_id,
         student_id: account.student_id,
         amount_paise: totalPayingPaise,
         remarks: remarks || null,
         breakdown: breakdown,
       });
+      try { localStorage.removeItem(CF_PENDING_PREFIX + order.order_id); } catch (_) {}
       onSuccess();
     } catch (e) {
-      setError("Could not confirm payment: " + e.message);
+      setError("Could not confirm payment: " + e.message + " — if money was deducted, check the Receipts tab in a minute before trying again.");
     } finally {
       setSaving(false);
     }
