@@ -3,11 +3,9 @@
 // @ts-nocheck
 
 
-export const API_BASE_URL = (() => {
-  const url = typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL;
-  if (!url) throw new Error("VITE_API_URL not found in .env ");
-  return url;
-})();
+export const API_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) ||
+  "https://waapi-h6e7b5g9cmfthkhn.centralindia-01.azurewebsites.net/api";
 
   let authLogoutRef = null; 
 export const setAuthLogoutRef = (fn) => { authLogoutRef = fn; }; 
