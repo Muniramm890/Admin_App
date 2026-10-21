@@ -51,7 +51,6 @@ const AdminThread = ({ messageId, recipientId, name, announcement, isMobile, onB
         </div>
         <div style={{ minWidth: 0 }}>
           <div className="syne" style={{ fontSize: 14.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
-          <div style={{ fontSize: 11.5, color: C.textMuted }}>Private thread · only you and school admins can see this</div>
         </div>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -189,7 +188,7 @@ export const RepliesPanel = ({ message, onClose, onChanged }) => {
               <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: C.textMuted, gap: 8, padding: 24, textAlign: "center" }}>
                 <Icon name="message" size={34} />
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Select a reply</div>
-                <div style={{ fontSize: 12.5 }}>Each person’s reply is a private thread. Others never see it.</div>
+                <div style={{ fontSize: 12.5 }}>Open a reply to read it and respond.</div>
               </div>
             )}
             {closeBtn}

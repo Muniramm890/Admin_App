@@ -69,8 +69,7 @@ const InboxThread = ({ messageId, onOpened, onBack, isMobile }) => {
           announcement={m ? { id: m.message_id, title: m.title, body: m.body, created_at: m.created_at, created_by_name: m.created_by_name, attachments: m.attachments, label } : null}
           messages={t.messages} ownSide="recipient" canReply={!!m?.can_reply} closedNote={closedNote}
           onSend={t.send} onRetry={t.retry} sending={t.sending} loading={t.loading} error={t.error}
-          privacyNote="Only the sender and school admins can see your reply."
-          emptyHint={m?.can_reply ? "You can reply to this announcement. Your reply stays private." : ""}
+          emptyHint={m?.can_reply ? "You can reply to this announcement." : ""}
         />
       </div>
     </div>
@@ -112,7 +111,7 @@ const SenderThread = ({ messageId, recipientId, onOpened, onBack, isMobile }) =>
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="syne" style={{ fontSize: 14.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
-          <div style={{ fontSize: 11.5, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Re: {m?.title || "…"} · private, only you and school admins</div>
+          <div style={{ fontSize: 11.5, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Re: {m?.title || "…"}</div>
         </div>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
