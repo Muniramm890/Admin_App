@@ -39,3 +39,38 @@ export const initNative = async () => {
     await SplashScreen.hide();
   } catch (_) { /* ignore */ }
 };
+
+// ── Push notifications (FCM) ──
+let pushToken = null;
+
+// login ke baad: permission -> token -> backend ko batao. Tap par 'open-chat' event (SchoolERP use sunta hai).
+export const registerPush = async (api) => {
+  if (!isNative) return;
+  try {
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    let perm = await PushNotifications.checkPermissions();
+    if (perm.receive === "prompt" || perm.receive === "prompt-with-rationale") perm = await PushNotifications.requestPermissions();
+    if (perm.receive !== "granted") return;
+
+    await PushNotifications.createChannel({ id: "chat", name: "Messages", description: "Announcements and chat replies", importance: 4, visibility: 1, vibration: true }).catch(() => {});
+    await PushNotifications.removeAllListeners(); // dobara login par duplicate listeners na bane
+    PushNotifications.addListener("registration", async (t) => {
+      pushToken = t.value;
+      try { await api("/device-tokens", "POST", { fcm_token: t.value, platform: "android" }); } catch (e) { console.warn("push register failed", e?.message); }
+    });
+    PushNotifications.addListener("registrationError", (e) => console.warn("push registration error", e));
+    PushNotifications.addListener("pushNotificationActionPerformed", (a) => {
+      const d = a?.notification?.data || {};
+      if (d.type === "chat") window.dispatchEvent(new CustomEvent("open-chat", { detail: d }));
+    });
+    await PushNotifications.register();
+  } catch (e) { console.warn("push setup failed", e?.message); }
+};
+
+// logout: is phone par is user ko push band (api call PEHLE hona chahiye, token clear hone se pehle)
+export const unregisterPush = (api) => {
+  if (!isNative || !pushToken) return Promise.resolve();
+  const t = pushToken;
+  pushToken = null;
+  return api("/device-tokens", "DELETE", { fcm_token: t }).catch(() => {});
+};

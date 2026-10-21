@@ -7,6 +7,7 @@ import { Icon } from "../../components/ui/Icon";
 import { ChatThread } from "../../components/chat/ChatThread";
 import { useChatThread } from "../../hooks/useChatThread";
 import { usePolling } from "../../hooks/usePolling";
+import { buildReplyForm } from "../../utils/chatMedia";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { CATEGORY_META } from "./helpers";
 import { C } from "../../theme/theme";
@@ -22,14 +23,14 @@ const AdminThread = ({ messageId, recipientId, name, announcement, isMobile, onB
   const base = `/comm/messages/${messageId}/threads/${recipientId}`;
   const load = useCallback(async () => {
     const res = await apiRequest(base);
-    return { meta: res?.data, replies: res?.data?.replies || [] };
+    return { meta: res?.data, replies: res?.data?.replies || [], receipts: res?.data?.receipts || [] };
   }, [base]);
   const poll = useCallback(async (since) => {
     const res = await apiRequest(`${base}?since_seq=${since}`);
-    return res?.data?.replies || [];
+    return res?.data || { replies: [] };
   }, [base]);
-  const send = useCallback(async (body, cid) => {
-    const res = await apiRequest(`${base}/reply`, "POST", { body, client_msg_id: cid });
+  const send = useCallback(async (body, cid, prepared) => {
+    const res = await apiRequest(`${base}/reply`, "POST", buildReplyForm(body, cid, prepared), true);
     onChanged?.();
     return res.data;
   }, [base]); // eslint-disable-line

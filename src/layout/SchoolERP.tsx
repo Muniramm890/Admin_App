@@ -15,7 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSession } from "../contexts/SessionContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useIsMobile } from "../hooks/useIsMobile";
-import { setNativeTheme } from "../native";
+import { setNativeTheme, registerPush } from "../native";
 import { AnalyticsModule } from "../modules/analytics/AnalyticsModule";
 import { ArrangementModule } from "../modules/arrangement/ArrangementModule";
 import { AttendanceModule } from "../modules/attendance/AttendanceModule";
@@ -73,6 +73,22 @@ export const SchoolERP = () => {
   const [school, setSchool] = useState(SCHOOL_CONFIG);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotifModal, setShowNotifModal] = useState(false);
+  const [openRequest, setOpenRequest] = useState(null);
+
+  // push: token register (app me hi) + notification tap -> us chat ko kholo
+  useEffect(() => { registerPush(apiRequest); }, []); // eslint-disable-line
+  useEffect(() => {
+    const h = (e) => {
+      const d = e.detail || {};
+      if (!d.messageId) return;
+      setOpenRequest(d.side === "sender" && d.recipientId
+        ? { type: "thread", messageId: d.messageId, recipientId: d.recipientId }
+        : { type: "announcement", messageId: d.messageId });
+      setShowNotifModal(true);
+    };
+    window.addEventListener("open-chat", h);
+    return () => window.removeEventListener("open-chat", h);
+  }, []);
   const [unreadCount, setUnreadCount] = useState(0);
   const [themeMode, setThemeMode] = useState(getSavedTheme());
 
@@ -390,7 +406,7 @@ export const SchoolERP = () => {
         themeMode={themeMode}
         onToggleTheme={toggleTheme}
       />
-      <NotificationModal open={showNotifModal} onClose={() => setShowNotifModal(false)} onUnreadChange={setUnreadCount} />
+      <NotificationModal open={showNotifModal} onClose={() => { setShowNotifModal(false); setOpenRequest(null); }} onUnreadChange={setUnreadCount} openRequest={openRequest} />
     </div>
   );
 };

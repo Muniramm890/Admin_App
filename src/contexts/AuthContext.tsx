@@ -3,6 +3,7 @@
 // @ts-nocheck
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiRequest, setAuthLogoutRef } from "../api/client";
+import { unregisterPush } from "../native";
 import { useDialog } from "./DialogContext";
 import { SplashScreen } from "../components/ui/SplashScreen";
 
@@ -33,6 +34,7 @@ export const AuthProvider = ({ children }) => {
   }, [authCheckFailed]); // eslint-disable-line
 
   const logout = React.useCallback(async () => {
+    unregisterPush(apiRequest); // fire-and-forget; sync part reads the token before it is cleared
     try {
       await apiRequest("/auth/logout", "POST");
     } catch (e) {

@@ -8,6 +8,7 @@ import { Icon } from "../ui/Icon";
 import { ChatThread } from "../chat/ChatThread";
 import { useChatThread } from "../../hooks/useChatThread";
 import { usePolling } from "../../hooks/usePolling";
+import { buildReplyForm } from "../../utils/chatMedia";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { CATEGORY_META } from "../../modules/commhub/helpers";
 import { C } from "../../theme/theme";
@@ -30,14 +31,14 @@ const InboxThread = ({ messageId, onOpened, onBack, isMobile }) => {
   const load = useCallback(async () => {
     const res = await apiRequest(`/inbox/${messageId}`);
     const d = res?.data || {};
-    return { meta: d, replies: d.replies || [] };
+    return { meta: d, replies: d.replies || [], receipts: d.receipts || [] };
   }, [messageId]);
   const poll = useCallback(async (since) => {
     const res = await apiRequest(`/inbox/${messageId}/replies?since_seq=${since}`);
-    return res?.data?.replies || [];
+    return res?.data || { replies: [] };
   }, [messageId]);
-  const send = useCallback(async (body, cid) => {
-    const res = await apiRequest(`/inbox/${messageId}/reply`, "POST", { body, client_msg_id: cid });
+  const send = useCallback(async (body, cid, prepared) => {
+    const res = await apiRequest(`/inbox/${messageId}/reply`, "POST", buildReplyForm(body, cid, prepared), true);
     return res.data;
   }, [messageId]);
 
@@ -82,14 +83,14 @@ const SenderThread = ({ messageId, recipientId, onOpened, onBack, isMobile }) =>
   const load = useCallback(async () => {
     const res = await apiRequest(base);
     const d = res?.data || {};
-    return { meta: d, replies: d.replies || [] };
+    return { meta: d, replies: d.replies || [], receipts: d.receipts || [] };
   }, [base]);
   const poll = useCallback(async (since) => {
     const res = await apiRequest(`${base}/replies?since_seq=${since}`);
-    return res?.data?.replies || [];
+    return res?.data || { replies: [] };
   }, [base]);
-  const send = useCallback(async (body, cid) => {
-    const res = await apiRequest(`${base}/reply`, "POST", { body, client_msg_id: cid });
+  const send = useCallback(async (body, cid, prepared) => {
+    const res = await apiRequest(`${base}/reply`, "POST", buildReplyForm(body, cid, prepared), true);
     return res.data;
   }, [base]);
 
@@ -128,7 +129,7 @@ const SenderThread = ({ messageId, recipientId, onOpened, onBack, isMobile }) =>
 
 const itemKey = (c) => (c.type === "thread" ? `${c.message_id}:${c.recipient_id}` : c.message_id);
 
-export const NotificationModal = ({ open, onClose, onUnreadChange }) => {
+export const NotificationModal = ({ open, onClose, onUnreadChange, openRequest = null }) => {
   const isMobile = useIsMobile();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -156,7 +157,7 @@ export const NotificationModal = ({ open, onClose, onUnreadChange }) => {
 
   useEffect(() => {
     if (!open) return;
-    setActive(null);
+    setActive(openRequest || null); // push tap -> seedha wahi chat
     loadList(false);
     refreshCount();
   }, [open]); // eslint-disable-line

@@ -17,7 +17,7 @@ Sirf code sync karna ho: `npm run cap:sync`
 ## Play Store ke liye
 - Android Studio -> Build -> Generate Signed Bundle (AAB). **Keystore file kho mat dena** (git me mat daalna, `.gitignore` me hai).
 - App icon/splash abhi Capacitor ka default hai. Apna logo 1024x1024 se: `npx @capacitor/assets generate --android`.
-- `appId`: `tech.schooloffice.teacher` (`capacitor.config.ts`) — purane install ke upar update chadhta rahe isliye nahi badla; app ka naam "School Office Admin" hai.
+- `appId`: `tech.schooloffice.admin` (`capacitor.config.ts`) — Firebase (push) ke package name se match karta hai. Purani "teacher" id wali app uninstall karke nayi install karo. App ka naam "School Office Admin" hai.
 
 ## API URL
 Default `src/api/client.ts` me hai. Alag URL ke liye `.env`: `VITE_API_URL=https://.../api`

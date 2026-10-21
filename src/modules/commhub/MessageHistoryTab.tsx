@@ -250,9 +250,13 @@ export const MessageHistoryTab = ({ onCompose }) => {
                   </div>
                   <div style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
                     <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</div>
-                    <div style={{ color: C.textMuted, fontSize: 11.5, textTransform: "capitalize" }}>{v.recipient_type}</div>
+                    <div style={{ color: C.textMuted, fontSize: 11.5 }}>
+                      <span style={{ textTransform: "capitalize" }}>{v.recipient_type}</span>
+                      {v.is_read && v.seen_at ? ` · ${new Date(v.seen_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}
+                      {v.reply_count > 0 ? ` · ${v.reply_count} repl${v.reply_count > 1 ? "ies" : "y"}` : ""}
+                    </div>
                   </div>
-                  <span className={`badge ${v.is_read ? "badge-green" : "badge-yellow"}`}>{v.is_read ? "Seen" : "Not seen"}</span>
+                  <span className={`badge ${v.is_read ? "badge-green" : "badge-yellow"}`}>{v.is_read ? "✓✓ Seen" : "Not seen"}</span>
                 </div>
               ))}
               {viewers.viewers.length === 0 && (

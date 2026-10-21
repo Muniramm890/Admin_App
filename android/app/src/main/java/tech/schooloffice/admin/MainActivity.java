@@ -1,4 +1,4 @@
-package tech.schooloffice.teacher;
+package tech.schooloffice.admin;
 
 import com.getcapacitor.BridgeActivity;
 
