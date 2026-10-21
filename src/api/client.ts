@@ -9,8 +9,8 @@ export const API_BASE_URL = (() => {
   return url;
 })();
 
-  let authLogoutRef = null; // module-level, AuthProvider isko set karega
-export const setAuthLogoutRef = (fn) => { authLogoutRef = fn; }; // [teacher-app] ES module me imported binding assign nahi hoti, isliye setter
+  let authLogoutRef = null; 
+export const setAuthLogoutRef = (fn) => { authLogoutRef = fn; }; 
 
   export const apiRequest = async (endpoint, method = "GET", body = null, isFormData = false) => {
     try {
@@ -26,7 +26,7 @@ export const setAuthLogoutRef = (fn) => { authLogoutRef = fn; }; // [teacher-app
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
       if (response.status === 204) return null;
-      // Azure cold-start / 502 / 503 par HTML aata hai -> response.json() "Unexpected token <" se phat jata tha
+      
       let data = null;
       try { data = await response.json(); } catch (_) { data = null; }
       if (data === null) {
@@ -38,10 +38,7 @@ export const setAuthLogoutRef = (fn) => { authLogoutRef = fn; }; // [teacher-app
       if (response.status === 401) {
         localStorage.removeItem("erp_token");
         if (authLogoutRef) authLogoutRef();       // React state se logout
-        // 🔴 window.location.reload() fallback HATA DIYA — ye hi reload-loop
-        // ka source tha. Ab error throw hoga, jo AuthProvider ke apne
-        // try/catch mein already handle ho raha hai (token clear + setUser(null)
-        // + setLoading(false)) — koi hard page-reload ki zaroorat nahi.
+        
         throw new Error("Session expired. Please login again.");
       }
 
