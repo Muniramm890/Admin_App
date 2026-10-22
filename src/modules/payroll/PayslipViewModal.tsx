@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
 import { DocLink } from "../../components/ui/DocLink";
+import { openPdf } from "../../utils/openDocument";
 import { inr, monthLabel } from "./helpers";
 import { C } from "../../theme/theme";
 
@@ -29,6 +30,7 @@ export const PayslipViewModal = ({ slipId, open, onClose, school }) => {
     try {
       const res = await apiRequest(`/payroll/payslips/${slipId}/generate-pdf`, "POST");
       setPdfUrl(res.data.pdf_url);
+      openPdf({ url: res.data.pdf_url, name: "Payslip.pdf", mime: "application/pdf", title: `Payslip${slip?.staff_name ? " • " + slip.staff_name : ""}` });
     } catch (e) {
       console.error(e);
     } finally {
@@ -68,19 +70,14 @@ export const PayslipViewModal = ({ slipId, open, onClose, school }) => {
       </div>
 
       {pdfUrl && (
-        <div className="no-print" style={{ background: "#26282f", padding: 12, display: "flex", justifyContent: "center", gap: 10 }}>
+        <div className="no-print" style={{ background: "#26282f", padding: 12, display: "flex", justifyContent: "center", alignItems: "center", gap: 14 }}>
           <span style={{ color: "#fff", fontSize: 12 }}>PDF ready:</span>
-          <DocLink doc={{ url: pdfUrl, name: "Payslip.pdf", mime: "application/pdf" }} style={{ color: "#8ab4ff", fontSize: 12, fontWeight: 700 }}>Open Full Screen</DocLink>
-          <DocLink doc={{ url: pdfUrl, name: "Payslip.pdf", mime: "application/pdf" }} forceDownload style={{ color: "#8ab4ff", fontSize: 12, fontWeight: 700 }}>Download</DocLink>
+          <button onClick={() => openPdf({ url: pdfUrl, name: "Payslip.pdf", mime: "application/pdf", title: "Payslip" })} style={{ color: "#8ab4ff", fontSize: 12, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 6 }}>Open PDF</button>
+          <DocLink doc={{ url: pdfUrl, name: "Payslip.pdf", mime: "application/pdf" }} forceDownload style={{ color: "#8ab4ff", fontSize: 12, fontWeight: 700, padding: 6 }}>Download</DocLink>
         </div>
       )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-        {pdfUrl && (
-          <div className="no-print" style={{ width: "100%", maxWidth: 760, height: 600, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-            <iframe src={pdfUrl} title="Payslip PDF" style={{ width: "100%", height: "100%", border: "none" }} />
-          </div>
-        )}
         {loading || !slip ? (
           <div style={{ padding: 60, color: C.textMuted }}>Loading payslip...</div>
         ) : (
