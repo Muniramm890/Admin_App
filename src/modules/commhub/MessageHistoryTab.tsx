@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { Modal } from "../../components/ui/Modal";
 import { Icon } from "../../components/ui/Icon";
+import { DocLink } from "../../components/ui/DocLink";
 import { KpiCard } from "../../components/ui/KpiCard";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { LogoLoader } from "../../components/ui/LogoLoader";
@@ -197,7 +198,7 @@ export const MessageHistoryTab = ({ onCompose }) => {
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.textMuted, marginBottom: 8 }}>Attachments</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                   {detail.attachments.map((a) => (
-                    <a key={a.id} href={a.file_url} target="_blank" rel="noopener noreferrer"
+                    <DocLink key={a.id} doc={{ url: a.file_url, name: a.file_name }}
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 10, textDecoration: "none", color: C.text }}>
                       <div style={{ width: 32, height: 32, borderRadius: 8, background: `${C.blue}22`, color: C.blue, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <Icon name="file" size={15} />
@@ -207,7 +208,7 @@ export const MessageHistoryTab = ({ onCompose }) => {
                         <div style={{ fontSize: 11.5, color: C.textMuted }}>{a.file_type} · {fmtSize(a.file_size_bytes)}</div>
                       </div>
                       <Icon name="download" size={14} />
-                    </a>
+                    </DocLink>
                   ))}
                 </div>
               </>

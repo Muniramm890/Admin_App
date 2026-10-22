@@ -1,6 +1,8 @@
 // FILE: teacher-app/src/modules/fees/StudentPassbookModal.tsx
 // Source: admin App.tsx -> StudentPassbookModal [14703-14853]
 // @ts-nocheck
+import { isNative } from "../../native";
+import { openDocument } from "../../utils/openDocument";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { FormRow } from "../../components/ui/FormRow";
@@ -28,6 +30,15 @@ export const StudentPassbookModal = ({ studentId, onClose, onVoided }) => {
   useEffect(() => { load(); }, [studentId]); // eslint-disable-line
 
   const openReceipt = async (p) => {
+    if (isNative) { // Android app: download + open in the phone's PDF viewer (no browser tab)
+      try {
+        const res = await apiRequest(`/fees/payments/${p.id}/receipt`);
+        const url = res?.data?.receipt_url;
+        if (!url) throw new Error("Receipt not available");
+        await openDocument({ url, name: `Receipt ${p.receipt_no || p.id}.pdf`, mime: "application/pdf" });
+      } catch (e) { alert("Failed: " + e.message); }
+      return;
+    }
     const w = window.open("", "_blank"); // popup-blocker se bachne ke liye click par hi khol do
     try {
       const res = await apiRequest(`/fees/payments/${p.id}/receipt`);

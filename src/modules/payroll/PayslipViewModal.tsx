@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
+import { DocLink } from "../../components/ui/DocLink";
 import { inr, monthLabel } from "./helpers";
 import { C } from "../../theme/theme";
 
@@ -69,8 +70,8 @@ export const PayslipViewModal = ({ slipId, open, onClose, school }) => {
       {pdfUrl && (
         <div className="no-print" style={{ background: "#26282f", padding: 12, display: "flex", justifyContent: "center", gap: 10 }}>
           <span style={{ color: "#fff", fontSize: 12 }}>PDF ready:</span>
-          <a href={pdfUrl} target="_blank" rel="noreferrer" style={{ color: "#8ab4ff", fontSize: 12, fontWeight: 700 }}>Open Full Screen</a>
-          <a href={pdfUrl} download style={{ color: "#8ab4ff", fontSize: 12, fontWeight: 700 }}>Download</a>
+          <DocLink doc={{ url: pdfUrl, name: "Payslip.pdf", mime: "application/pdf" }} style={{ color: "#8ab4ff", fontSize: 12, fontWeight: 700 }}>Open Full Screen</DocLink>
+          <DocLink doc={{ url: pdfUrl, name: "Payslip.pdf", mime: "application/pdf" }} forceDownload style={{ color: "#8ab4ff", fontSize: 12, fontWeight: 700 }}>Download</DocLink>
         </div>
       )}
 

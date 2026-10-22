@@ -6,6 +6,7 @@ import { apiRequest } from "../../api/client";
 import { FormGrid } from "../../components/ui/FormGrid";
 import { FormRow } from "../../components/ui/FormRow";
 import { Icon } from "../../components/ui/Icon";
+import { DocLink } from "../../components/ui/DocLink";
 import { KpiCard } from "../../components/ui/KpiCard";
 import { Modal } from "../../components/ui/Modal";
 import { useDialog } from "../../contexts/DialogContext";
@@ -428,12 +429,12 @@ export const HomeworkModule = ({ school }) => {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {activeAttachments.map((f) => (
-              <a key={f.id} href={f.file_url} target="_blank" rel="noreferrer"
+              <DocLink key={f.id} doc={{ url: f.file_url, name: f.file_name }}
                 style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.surfaceAlt, borderRadius: 10, border: `1px solid ${C.border}`, textDecoration: "none", color: C.text }}>
                 <Icon name="file" size={16} color={C.primary} />
                 <span style={{ fontSize: 13, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.file_name}</span>
                 <Icon name="download" size={14} color={C.textMuted} />
-              </a>
+              </DocLink>
             ))}
           </div>
         )}
