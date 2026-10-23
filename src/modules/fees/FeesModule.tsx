@@ -29,7 +29,6 @@ export const FeesModule = ({ school }) => {
   const [filterStatus, setFilterStatus] = useState("");
   const [passbookStudentId, setPassbookStudentId] = useState(null);
   const [collectAccount, setCollectAccount] = useState(null);
-  const [receiptViewerUrl, setReceiptViewerUrl] = useState(null);
 
   const [feeAccounts, setFeeAccounts] = useState([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
@@ -510,7 +509,7 @@ export const FeesModule = ({ school }) => {
       )}
 
       {/* 🔴 FIX 1: Passed the prop here */}
-      {tab === "receipts" && <FeeReceiptsTab setReceiptViewerUrl={setReceiptViewerUrl} />}
+      {tab === "receipts" && <FeeReceiptsTab />}
       {tab === "structures" && <FeeStructuresTab />}
 
       <CollectPaymentModal
@@ -524,12 +523,6 @@ export const FeesModule = ({ school }) => {
         onVoided={refreshAll}
       />
 
-      {/* 🔴 FIX 2: Rendered the PdfViewerModal here */}
-      <PdfViewerModal 
-        url={receiptViewerUrl} 
-        onClose={() => setReceiptViewerUrl(null)} 
-        title="Fee Receipt" 
-      />
     </div>
   );
 };

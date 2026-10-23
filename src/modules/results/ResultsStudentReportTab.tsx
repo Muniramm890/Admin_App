@@ -5,14 +5,13 @@ import { useEffect, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
-import { PdfViewerModal } from "../../components/ui/PdfViewerModal";
+import { openGeneratedPdf } from "../../utils/fetchDoc";
 import { C } from "../../theme/theme";
 
    // ─────────────────────────────────────────────────────────────
    // ─────────────────────────────────────────────────────────────
 
 export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
-  const [reportPdfUrl, setReportPdfUrl] = useState(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [availableSections, setAvailableSections] = useState([]);
@@ -96,9 +95,7 @@ export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
     if (!studentId || !examGroupId) return;
     setGeneratingPdf(true);
     try {
-      const res = await apiRequest(`/results/student/${studentId}/report-card/pdf?exam_group_id=${examGroupId}`);
-      if (res?.data?.url) setReportPdfUrl(res.data.url);
-      else alert("PDF generation failed.");
+      await openGeneratedPdf(`/results/student/${studentId}/report-card/pdf?exam_group_id=${examGroupId}`, { name: "Report Card.pdf", title: "Report Card" });
     } catch (e) {
       alert("Failed to generate report card: " + e.message);
     } finally {
@@ -110,9 +107,7 @@ export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
     if (!sectionId || !examGroupId) return;
     setBulkGenerating(true);
     try {
-      const res = await apiRequest(`/results/report-cards/bulk?section_id=${sectionId}&exam_group_id=${examGroupId}`);
-      if (res?.data?.url) setReportPdfUrl(res.data.url);
-      else alert("Bulk generation failed.");
+      await openGeneratedPdf(`/results/report-cards/bulk?section_id=${sectionId}&exam_group_id=${examGroupId}`, { name: "Report Cards.pdf", title: "Report Cards" });
     } catch (e) {
       alert("Failed to generate bulk report cards: " + e.message);
     } finally {
@@ -175,13 +170,6 @@ export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
           </button>
         </div>
       </div>
-
-      <PdfViewerModal
-        url={reportPdfUrl}
-        onClose={() => setReportPdfUrl(null)}
-        title="Report Card"
-        pageSize="A4"
-      />
 
       {!studentId ? (
         <div className="card" style={{ padding: 40, textAlign: "center", color: C.textMuted }}>

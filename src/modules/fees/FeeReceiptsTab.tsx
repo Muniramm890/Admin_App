@@ -1,6 +1,7 @@
 // FILE: teacher-app/src/modules/fees/FeeReceiptsTab.tsx
 // Source: admin App.tsx -> FeeReceiptsTab [15083-15189]
 // @ts-nocheck
+import { openGeneratedPdf } from "../../utils/fetchDoc";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { FormRow } from "../../components/ui/FormRow";
@@ -11,7 +12,7 @@ import { C } from "../../theme/theme";
 import { todayISO } from "../../utils/date";
 
 // ── RECEIPTS TAB ──
-export const FeeReceiptsTab = ({ setReceiptViewerUrl }) => {
+export const FeeReceiptsTab = () => {
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
@@ -25,8 +26,7 @@ export const FeeReceiptsTab = ({ setReceiptViewerUrl }) => {
   const downloadReceipt = async (paymentId) => {
     setDownloadingId(paymentId);
     try {
-      const res = await apiRequest(`/fees/payments/${paymentId}/receipt`);
-      if (res?.data?.receipt_url) setReceiptViewerUrl(res.data.receipt_url);
+      await openGeneratedPdf(`/fees/payments/${paymentId}/receipt`, { name: "Fee Receipt.pdf", title: "Fee Receipt" });
     } catch (e) {
       alert("Failed to generate receipt: " + e.message);
     } finally {

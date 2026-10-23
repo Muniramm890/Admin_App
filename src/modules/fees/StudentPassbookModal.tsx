@@ -1,6 +1,7 @@
 // FILE: teacher-app/src/modules/fees/StudentPassbookModal.tsx
 // Source: admin App.tsx -> StudentPassbookModal [14703-14853]
 // @ts-nocheck
+import { openGeneratedPdf } from "../../utils/fetchDoc";
 import { openDocument } from "../../utils/openDocument";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
@@ -30,10 +31,7 @@ export const StudentPassbookModal = ({ studentId, onClose, onVoided }) => {
 
   const openReceipt = async (p) => {
     try {
-      const res = await apiRequest(`/fees/payments/${p.id}/receipt`);
-      const url = res?.data?.receipt_url;
-      if (!url) throw new Error("Receipt not available");
-      await openDocument({ url, name: `Receipt ${p.receipt_no || p.id}.pdf`, mime: "application/pdf", title: `Receipt ${p.receipt_no || ""}`.trim() });
+      await openGeneratedPdf(`/fees/payments/${p.id}/receipt`, { name: `Receipt ${p.receipt_no || p.id}.pdf`, title: `Receipt ${p.receipt_no || ""}`.trim() });
     } catch (e) { alert("Failed: " + e.message); }
   };
 
