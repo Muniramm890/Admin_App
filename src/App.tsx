@@ -3,6 +3,9 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { SplashScreen } from "./components/ui/SplashScreen";
+import { DriverTrackerScreen } from "./modules/driver/DriverTrackerScreen";
+import { isNative } from "./native";
+import { apiRequest } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { DataProvider } from "./contexts/DataContext";
@@ -17,6 +20,22 @@ const MainLayout = () => {
   const { user } = useAuth();
   const [showSplash, setShowSplash] = useState(false);
   const hadUserRef = useRef(false);
+  // Android app: is this login a bus DRIVER? -> tracker screen instead of the ERP (tracking runs 24x7 in a native service)
+  const [driverChecked, setDriverChecked] = useState(!isNative);
+  const [isDriver, setIsDriver] = useState(false);
+  const [driverTry, setDriverTry] = useState(0);
+  useEffect(() => {
+    if (!isNative || !user) { setIsDriver(false); setDriverChecked(!isNative); return; }
+    let dead = false;
+    setDriverChecked(false);
+    apiRequest("/driver/me").then((r) => {
+      if (dead) return;
+      const d = !!r?.data?.is_driver;
+      setIsDriver(d); setDriverChecked(true);
+      if (d) localStorage.setItem("erp_driver_mode", "1"); else localStorage.removeItem("erp_driver_mode");
+    }).catch(() => { if (!dead) setTimeout(() => setDriverTry((n) => n + 1), 5000); }); // offline at start: retry
+    return () => { dead = true; };
+  }, [user?.id, driverTry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Sirf login ke moment pe (no-user -> user transition) splash dikhao,
@@ -31,7 +50,8 @@ const MainLayout = () => {
   }, [user]);
 
   if (!user) return <LoginPage />;
-  if (showSplash) return <SplashScreen />;
+  if (showSplash || (isNative && !driverChecked)) return <SplashScreen />;
+  if (isNative && isDriver) return <DriverTrackerScreen />;
   return <SchoolERP />;
 };
 

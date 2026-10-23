@@ -53,6 +53,7 @@ export const AuthProvider = ({ children }) => {
   // 🔴 INACTIVITY AUTO-LOGOUT — 15 min inactive → logout, 1 min pehle warning
   useEffect(() => {
     if (!user) return;
+    if (localStorage.getItem("erp_driver_mode") === "1") return; // bus-driver phone stays logged in (24x7 tracking screen)
 
     const TIMEOUT_MS = 15 * 60 * 1000;   // 👈 yahan change karo (5*60*1000 ya 30*60*1000)
     const WARNING_MS = 60 * 1000;        // logout se 1 min pehle warning dikhao
