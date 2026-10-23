@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
 import { C } from "../../theme/theme";
+import { createFleetMap } from "./fleetMap";
 
 const LIVE_SEC = 120, RECENT_SEC = 1800;
 const COLORS = { live: "#22C55E", recent: "#F59E0B", offline: "#EF4444", none: "#94A3B8" };
@@ -14,40 +15,20 @@ const LABEL = { live: "Live", recent: "Recently", offline: "Offline", none: "No 
 const ago = (s) => (s == null ? "No data" : s < 60 ? `${Math.max(0, Math.round(s))}s` : s < 3600 ? `${Math.floor(s / 60)}m` : s < 86400 ? `${Math.floor(s / 3600)}h` : `${Math.floor(s / 86400)}d`);
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-let gmapsPromise = null;
-const loadGoogleMaps = (key) => {
-  if (!gmapsPromise) {
-    gmapsPromise = new Promise((resolve, reject) => {
-      if (window.google?.maps) return resolve(window.google.maps);
-      window.gm_authFailure = () => reject(new Error("Google Maps rejected the API key (check the key restrictions)."));
-      const s = document.createElement("script");
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-      s.async = true;
-      s.onload = () => (window.google?.maps ? resolve(window.google.maps) : reject(new Error("Google Maps failed to load.")));
-      s.onerror = () => reject(new Error("Could not load Google Maps. Check the internet connection."));
-      document.head.appendChild(s);
-    }).catch((e) => { gmapsPromise = null; throw e; });
-  }
-  return gmapsPromise;
-};
-
-const pinIcon = (maps, color, label) => ({
-  url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52"><path d="M22 51C22 51 41 33 41 20C41 9.5 32.5 1 22 1S3 9.5 3 20C3 33 22 51 22 51Z" fill="${color}" stroke="#fff" stroke-width="2.5"/><circle cx="22" cy="20" r="11.5" fill="#fff"/><text x="22" y="24" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="${label.length > 3 ? 10 : 11.5}" fill="${color}">${esc(label)}</text></svg>`),
-  scaledSize: new maps.Size(40, 47), anchor: new maps.Point(20, 47),
-});
-
 export const TransportLiveTab = () => {
   const [fleet, setFleet] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mapErr, setMapErr] = useState(null);
-  const [mapKey, setMapKey] = useState(undefined); // undefined = loading, null = not configured
+  const [cfg, setCfg] = useState(null);             // /transport/map-config
+  const [forceOsm, setForceOsm] = useState(false);  // Google key rejected -> fall back to free OpenStreetMap
+  const [engine, setEngine] = useState(null);
+  const [mapReady, setMapReady] = useState(0);
   const [sel, setSel] = useState(null);
   const [traffic, setTraffic] = useState(false);
   const [, force] = useState(0);
   const fetchedAt = useRef(Date.now());
-  const mapDiv = useRef(null), map = useRef(null), mapsApi = useRef(null), markers = useRef({}), info = useRef(null), trafficLayer = useRef(null), fitted = useRef(false);
+  const mapDiv = useRef(null), mapRef = useRef(null);
   const tickN = useRef(0);
 
   // data
@@ -60,7 +41,7 @@ export const TransportLiveTab = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); const iv = setInterval(load, 10000); const t = setInterval(() => force((n) => n + 1), 15000); return () => { clearInterval(iv); clearInterval(t); }; }, []);
-  useEffect(() => { apiRequest("/transport/map-config").then((r) => setMapKey(r?.data?.google_maps_key || null)).catch(() => setMapKey(null)); }, []);
+  useEffect(() => { apiRequest("/transport/map-config").then((r) => setCfg(r?.data || {})).catch(() => setCfg({})); }, []);
 
   const vehicles = useMemo(() => {
     const extra = (Date.now() - fetchedAt.current) / 1000;
@@ -72,19 +53,16 @@ export const TransportLiveTab = () => {
   }, [fleet, loading, error, fetchedAt.current]); // eslint-disable-line react-hooks/exhaustive-deps
   const counts = useMemo(() => vehicles.reduce((m, v) => { m[v.status]++; return m; }, { live: 0, recent: 0, offline: 0, none: 0 }), [vehicles]);
 
-  // map setup
+  // map engine (free OpenStreetMap by default, Google Maps if a key is configured)
   useEffect(() => {
-    if (!mapKey || !mapDiv.current || map.current) return;
-    let dead = false;
-    loadGoogleMaps(mapKey).then((maps) => {
-      if (dead || !mapDiv.current) return;
-      mapsApi.current = maps;
-      map.current = new maps.Map(mapDiv.current, { center: { lat: 22.5, lng: 78.9 }, zoom: 5, mapTypeControl: true, streetViewControl: false, fullscreenControl: true, gestureHandling: "greedy", clickableIcons: false });
-      info.current = new maps.InfoWindow();
-      force((n) => n + 1);
-    }).catch((e) => setMapErr(e.message));
-    return () => { dead = true; };
-  }, [mapKey]);
+    if (!cfg || !mapDiv.current) return;
+    let dead = false, created = null;
+    setMapErr(null); mapRef.current = null; setEngine(null);
+    createFleetMap(mapDiv.current, cfg, { onSelect: (id) => setSel(id), onFail: () => setForceOsm(true) }, forceOsm)
+      .then((m) => { if (dead) { m.destroy(); return; } created = m; mapRef.current = m; setEngine(m.engine); setMapReady((n) => n + 1); })
+      .catch((e) => { if (!dead) { if (cfg.google_maps_key && !forceOsm) setForceOsm(true); else setMapErr(e.message || "Map could not be loaded"); } });
+    return () => { dead = true; mapRef.current = null; created?.destroy(); };
+  }, [cfg, forceOsm]);
 
   const infoHtml = (v) => `
     <div style="font-family:Inter,Arial,sans-serif;min-width:200px;color:#14151F">
@@ -100,39 +78,18 @@ export const TransportLiveTab = () => {
 
   // markers follow the data
   useEffect(() => {
-    const maps = mapsApi.current, m = map.current; if (!maps || !m) return;
-    const seen = new Set(); const bounds = new maps.LatLngBounds();
-    vehicles.forEach((v) => {
-      if (v.lat == null) return;
-      seen.add(v.vehicle_id); const pos = { lat: v.lat, lng: v.lng }; bounds.extend(pos);
-      const label = String(v.registration_no || "").replace(/\s+/g, "").slice(-4);
-      let mk = markers.current[v.vehicle_id];
-      if (!mk) { mk = new maps.Marker({ map: m, position: pos, title: v.registration_no }); mk.addListener("click", () => setSel(v.vehicle_id)); markers.current[v.vehicle_id] = mk; }
-      mk.setPosition(pos); mk.setIcon(pinIcon(maps, COLORS[v.status], label)); mk.setZIndex(v.status === "live" ? 3 : v.status === "recent" ? 2 : 1);
-    });
-    Object.keys(markers.current).forEach((id) => { if (!seen.has(id)) { markers.current[id].setMap(null); delete markers.current[id]; } });
-    if (!fitted.current && seen.size) { fitted.current = true; m.fitBounds(bounds, 60); if (seen.size === 1) m.setZoom(15); }
-  }, [vehicles, mapKey, mapsApi.current]);
+    const m = mapRef.current; if (!m) return;
+    m.setVehicles(vehicles.map((v) => ({ id: v.vehicle_id, lat: v.lat, lng: v.lng, status: v.status, color: COLORS[v.status], label: String(v.registration_no || "").replace(/\s+/g, "").slice(-4), title: v.registration_no })));
+  }, [vehicles, mapReady]);
 
   // selecting a vehicle -> focus + info window
   useEffect(() => {
-    const maps = mapsApi.current, m = map.current; if (!maps || !m || !sel) return;
-    const v = vehicles.find((x) => x.vehicle_id === sel); const mk = markers.current[sel]; if (!v || !mk) return;
-    m.panTo({ lat: v.lat, lng: v.lng }); if ((m.getZoom() || 0) < 15) m.setZoom(16);
-    info.current.setContent(infoHtml(v)); info.current.open({ map: m, anchor: mk });
-  }, [sel, vehicles]); // eslint-disable-line react-hooks/exhaustive-deps
+    const m = mapRef.current; if (!m || !sel) return;
+    const v = vehicles.find((x) => x.vehicle_id === sel); if (v && v.lat != null) m.focus(sel, infoHtml(v));
+  }, [sel, vehicles, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const maps = mapsApi.current, m = map.current; if (!maps || !m) return;
-    if (!trafficLayer.current) trafficLayer.current = new maps.TrafficLayer();
-    trafficLayer.current.setMap(traffic ? m : null);
-  }, [traffic, mapKey, mapsApi.current]);
-
-  const fitAll = () => {
-    const maps = mapsApi.current, m = map.current; if (!maps || !m) return;
-    const b = new maps.LatLngBounds(); let n = 0; vehicles.forEach((v) => { if (v.lat != null) { b.extend({ lat: v.lat, lng: v.lng }); n++; } });
-    if (n) { m.fitBounds(b, 60); if (n === 1) m.setZoom(15); } setSel(null); info.current?.close();
-  };
+  useEffect(() => { mapRef.current?.setTraffic(traffic); }, [traffic, mapReady]);
+  const fitAll = () => { mapRef.current?.fitAll(); setSel(null); };
 
   return (
     <div>
@@ -152,20 +109,20 @@ export const TransportLiveTab = () => {
           </span>
         ))}
         <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost" onClick={() => setTraffic((t) => !t)} style={traffic ? { borderColor: C.primary, color: C.primary } : null}>Traffic</button>
+        {engine === "google" && <button className="btn btn-ghost" onClick={() => setTraffic((t) => !t)} style={traffic ? { borderColor: C.primary, color: C.primary } : null}>Traffic</button>}
         <button className="btn btn-ghost" onClick={fitAll}>Show all</button>
         <button className="btn btn-ghost" onClick={load}><Icon name="refresh" size={13} /> Refresh</button>
       </div>
 
       {error && <div className="card" style={{ padding: 14, marginBottom: 12, borderColor: C.red }}><div style={{ color: C.red, fontSize: 12.5, fontWeight: 600 }}>{error}</div></div>}
-      {(mapKey === null || mapErr) && (
+      {mapErr && (
         <div className="card" style={{ padding: 14, marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{mapErr ? "Map could not be shown" : "Google Maps is not set up yet"}</div>
-          <div style={{ fontSize: 12.5, color: C.textMuted, marginTop: 3 }}>{mapErr || "Add the GOOGLE_MAPS_API_KEY setting on the server to see vehicles on the map. The list below still works."}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Map could not be shown</div>
+          <div style={{ fontSize: 12.5, color: C.textMuted, marginTop: 3 }}>{mapErr} The vehicle list below still works.</div>
         </div>
       )}
 
-      <div className="fleet-wrap" style={mapKey ? null : { gridTemplateColumns: "1fr", height: "auto" }}>
+      <div className="fleet-wrap" style={mapErr ? { gridTemplateColumns: "1fr", height: "auto" } : null}>
         <div className="card fleet-list">
           {loading ? <div style={{ padding: 30, textAlign: "center", color: C.textMuted }}>Loading…</div>
             : !vehicles.length ? <div style={{ padding: 30, textAlign: "center", color: C.textMuted, fontSize: 13 }}>No vehicles yet. Add vehicles in the Vehicles tab.</div>
@@ -183,7 +140,7 @@ export const TransportLiveTab = () => {
               </div>
             ))}
         </div>
-        {mapKey && <div className="fleet-map"><div ref={mapDiv} style={{ position: "absolute", inset: 0 }} />{!map.current && !mapErr && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: C.textMuted, fontSize: 13 }}>Loading map…</div>}</div>}
+        {!mapErr && <div className="fleet-map"><div ref={mapDiv} style={{ position: "absolute", inset: 0 }} />{!engine && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: C.textMuted, fontSize: 13 }}>Loading map…</div>}</div>}
       </div>
     </div>
   );
