@@ -14,6 +14,82 @@ import { C } from "../../theme/theme";
 // special mark statuses -> [short label, long label]
 const ST_LABEL = { absent: ["AB", "Absent"], malpractice: ["MP", "Malpractice"], leave: ["L", "Leave"], tc: ["TC", "TC"], exempted: ["EX", "Exempt"] };
 
+// marks subjects and graded (co-scholastic) subjects are shown separately
+const ReportBody = ({ report, name }) => {
+  const subs = report.subjects || [];
+  const marksSubs = subs.filter((s) => !s.is_grade_only);
+  const gradeSubs = subs.filter((s) => s.is_grade_only);
+  const rank = (v) => (v ? `#${v}` : "-");
+  const tone = report.status === "pass" ? C.green : report.status === "incomplete" ? C.yellow : C.red;
+  const tiles = [
+    ["Percentage", report.status === "incomplete" ? "-" : `${report.percentage}%`, C.primary],
+    ["Grade", report.grade || "-", C.green],
+    ["Total Marks", `${report.total_marks ?? "-"} / ${report.max_total ?? "-"}`, C.text],
+    ["Class Rank", rank(report.class_rank), C.blue],
+    ["School Rank", rank(report.school_rank), C.purple],
+  ];
+  const head = { fontSize: 11, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: C.textMuted, margin: "18px 0 8px" };
+  return (
+    <div className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <h3 className="syne" style={{ fontSize: 18, fontWeight: 800 }}>{name}</h3>
+        <span className="badge" style={{ background: `${tone}22`, color: tone, fontWeight: 800 }}>{(report.status || "-").toUpperCase()}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 10 }}>
+        {tiles.map(([l, v, c]) => (
+          <div key={l} style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 12, padding: "10px 12px", textAlign: "center" }}>
+            <div className="syne" style={{ fontSize: 18, fontWeight: 800, color: c }}>{v}</div>
+            <div style={{ fontSize: 10.5, color: C.textMuted, marginTop: 2 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {marksSubs.length > 0 && (
+        <>
+          <div style={head}>Scholastic subjects</div>
+          <div style={{ overflowX: "auto" }}>
+            <table className="table" style={{ minWidth: 520 }}>
+              <thead><tr><th>Subject</th><th>Marks</th><th>Max</th><th style={{ width: 150 }}>Score</th><th>Result</th></tr></thead>
+              <tbody>
+                {marksSubs.map((s, i) => {
+                  const lab = ST_LABEL[s.status];
+                  const has = s.marks_obtained !== null && s.marks_obtained !== undefined;
+                  const pct = !lab && has && Number(s.max_marks) > 0 ? Math.min(100, (Number(s.marks_obtained) / Number(s.max_marks)) * 100) : 0;
+                  const failed = !lab && has && Number(s.marks_obtained) < Number(s.passing_marks);
+                  const col = lab ? (["leave", "tc", "exempted"].includes(s.status) ? C.yellow : C.red) : !has ? C.yellow : failed ? C.red : C.green;
+                  return (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 600 }}>{s.subject_name}</td>
+                      <td className="syne" style={{ fontWeight: 800, color: failed || (lab && !["leave", "tc", "exempted"].includes(s.status)) ? C.red : C.text }}>{lab ? lab[0] : has ? s.marks_obtained : "-"}</td>
+                      <td style={{ color: C.textMuted }}>{s.max_marks}</td>
+                      <td><div className="progress-bar"><div className="progress-fill" style={{ width: `${pct}%`, background: col }} /></div></td>
+                      <td><span className="badge" style={{ background: `${col}22`, color: col, fontWeight: 700 }}>{lab ? lab[1] : !has ? "Pending" : failed ? "Fail" : "Pass"}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {gradeSubs.length > 0 && (
+        <>
+          <div style={head}>Co-scholastic / graded areas</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10 }}>
+            {gradeSubs.map((s, i) => (
+              <div key={i} style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 12, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.subject_name}</span>
+                <span className="syne" style={{ fontSize: 16, fontWeight: 800, color: ST_LABEL[s.status] ? C.red : C.primary }}>{ST_LABEL[s.status] ? ST_LABEL[s.status][0] : (s.grade_obtained || "-")}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [bulkGenerating, setBulkGenerating] = useState(false);
@@ -208,52 +284,7 @@ export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
               No result data found for this student in the selected exam.
             </div>
           ) : (
-            <div className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-                <div>
-                  <h3 className="syne" style={{ fontSize: 18, fontWeight: 800 }}>
-                    {selectedStudentMeta?.student_name}
-                  </h3>
-                  <span className={`badge ${report.status === "pass" ? "badge-green" : report.status === "incomplete" ? "badge-yellow" : "badge-red"}`}>
-                    {report.status?.toUpperCase()}
-                  </span>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div className="syne" style={{ fontSize: 24, fontWeight: 800, color: C.primary }}>{report.percentage}%</div>
-                  <div style={{ fontSize: 11, color: C.textMuted }}>
-                    Grade <b style={{color: C.text}}>{report.grade}</b> · Class Rank <b style={{color: C.text}}>{report.class_rank ? `#${report.class_rank}` : "-"}</b> · School Rank <b style={{color: C.text}}>{report.school_rank ? `#${report.school_rank}` : "-"}</b>
-                  </div>
-                </div>
-              </div>
-              <div style={{ overflowX: "auto" }}>
-              <table className="table" style={{ minWidth: 520 }}>
-                <thead><tr><th>Subject</th><th>Marks Obtained</th><th>Max Marks</th><th>Status</th></tr></thead>
-                <tbody>
-                {report.subjects?.map((s, i) => (
-                    <tr key={i}>
-                      <td>
-                        {s.subject_name} 
-                        {s.is_grade_only ? <span style={{fontSize: 9, marginLeft: 6, color: C.textMuted}}>(Graded)</span> : null}
-                      </td>
-                      <td className="syne" style={{ fontWeight: 700 }}>
-                        {ST_LABEL[s.status] ? ST_LABEL[s.status][0] : s.is_grade_only ? (s.grade_obtained || "-") : (s.marks_obtained ?? "-")}
-                      </td>
-                      <td>{s.is_grade_only ? "-" : s.max_marks}</td>
-                      <td>
-                        {s.is_grade_only ? (
-                           <span className="badge badge-yellow">Evaluated</span>
-                        ) : (
-                           <span className={`badge ${ST_LABEL[s.status] ? (["leave", "tc", "exempted"].includes(s.status) ? "badge-yellow" : "badge-red") : s.marks_obtained === null || s.marks_obtained === undefined ? "badge-yellow" : Number(s.marks_obtained) >= Number(s.passing_marks) ? "badge-green" : "badge-red"}`}>
-                             {ST_LABEL[s.status] ? ST_LABEL[s.status][1] : s.marks_obtained === null || s.marks_obtained === undefined ? "Pending" : Number(s.marks_obtained) >= Number(s.passing_marks) ? "Pass" : "Fail"}
-                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
-            </div>
+            <ReportBody report={report} name={selectedStudentMeta?.student_name} />
           )}
         </>
       )}
