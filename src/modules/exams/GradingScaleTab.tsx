@@ -1,6 +1,7 @@
 // FILE: teacher-app/src/modules/exams/GradingScaleTab.tsx
 // Source: admin App.tsx -> GradingScaleTab [18046-18215]
 // @ts-nocheck
+import { explain } from "../../utils/apiErrors";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
 import { Icon } from "../../components/ui/Icon";
@@ -62,7 +63,7 @@ export const GradingScaleTab = () => {
       await apiRequest("/setup/grading-scale", "PUT", { scale: rows });
       alert("✅ Grading scale saved!");
     } catch (e) {
-      alert("Save failed: " + e.message);
+      alert("Save failed: " + explain(e));
     } finally {
       setSaving(false);
     }

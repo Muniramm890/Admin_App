@@ -109,10 +109,10 @@ export const ExamWorkspace = ({ exam, onBack, onExamUpdated }) => {
       ) : (
         <>
           {tab === "datesheet" && (
-            <DateSheetTab examId={exam.id} examSections={examSections} />
+            <DateSheetTab examId={exam.id} examSections={examSections} examStatus={exam.status} />
           )}
           {tab === "marks" && (
-            <MarksEntryTab examId={exam.id} examSections={examSections} />
+            <MarksEntryTab examId={exam.id} examSections={examSections} examStatus={exam.status} />
           )}
           {tab === "results" && (
             <ResultsPublishTab

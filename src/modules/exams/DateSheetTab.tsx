@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../api/client";
+import { explain } from "../../utils/apiErrors";
 import { useGradeSubjects } from "../../shared/subjects/useGradeSubjects";
 import { C } from "../../theme/theme";
 
@@ -10,7 +11,8 @@ import { C } from "../../theme/theme";
 // DATE SHEET TAB — per exam, pick a class, tick which subjects are
 // part of this exam, set date/time/marks via dropdowns+pickers.
 // ═══════════════════════════════════════════════════════════════
-export const DateSheetTab = ({ examId, examSections, grades }) => {
+export const DateSheetTab = ({ examId, examSections, grades, examStatus }) => {
+  const locked = examStatus === "published";
   const [sectionId, setSectionId] = useState(examSections[0]?.id || "");
   const currentSection = examSections.find((s) => s.id === sectionId);
   const gradeId = currentSection?.grade_id;
@@ -107,12 +109,18 @@ export const DateSheetTab = ({ examId, examSections, grades }) => {
         subject_id,
         exam_date: r.exam_date || null,
         start_time: r.start_time,
-        duration_minutes: Number(r.duration_minutes) || 0,
-        max_marks: Number(r.max_marks) || 0,
-        passing_marks: Number(r.passing_marks) || 0,
+        duration_minutes: Number(r.duration_minutes) || 120,
+        max_marks: r.is_grade_only ? 0 : Number(r.max_marks),
+        // blank = let the server use 33% of max; an explicit 0 is kept ("no pass mark")
+        passing_marks: r.is_grade_only ? 0 : (r.passing_marks === "" || r.passing_marks === null || r.passing_marks === undefined ? null : Number(r.passing_marks)),
         is_grade_only: !!r.is_grade_only // 
       }));
 
+    if (locked) { alert("Results are published. Unpublish the exam first to change the date sheet."); return; }
+    const badMax = entries.find((e) => !e.is_grade_only && !(e.max_marks > 0));
+    if (badMax) { alert("Max marks must be greater than 0 for every ticked subject."); return; }
+    const badPass = entries.find((e) => !e.is_grade_only && e.passing_marks !== null && e.passing_marks > e.max_marks);
+    if (badPass) { alert(`Passing marks (${badPass.passing_marks}) cannot be more than max marks (${badPass.max_marks}).`); return; }
     if (entries.some((e) => !e.exam_date)) {
       alert("Please set an exam date for every ticked subject.");
       return;
@@ -127,7 +135,7 @@ export const DateSheetTab = ({ examId, examSections, grades }) => {
       alert("✅ Date sheet saved!");
       await load();
     } catch (e) {
-      alert("Save failed: " + e.message);
+      alert("Save failed: " + explain(e));
     } finally {
       setSaving(false);
     }
@@ -223,7 +231,7 @@ export const DateSheetTab = ({ examId, examSections, grades }) => {
             className="btn btn-primary"
             style={{ marginLeft: "auto" }}
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || locked}
           >
             {saving ? "Saving…" : "Save Date Sheet"}
           </button>

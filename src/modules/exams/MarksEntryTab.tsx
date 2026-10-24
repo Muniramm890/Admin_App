@@ -3,6 +3,7 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../api/client";
+import { explain } from "../../utils/apiErrors";
 import { Icon } from "../../components/ui/Icon";
 import { Modal } from "../../components/ui/Modal";
 import { MARK_STATUS_OPTIONS } from "./helpers";
@@ -11,7 +12,8 @@ import { C } from "../../theme/theme";
   // ═══════════════════════════════════════════════════════════════
  // MARKS ENTRY TAB — FIXED WITH BULK CSV IMPORT & STRICT VALIDATION
  // ═══════════════════════════════════════════════════════════════
-export const MarksEntryTab = ({ examId, examSections }) => {
+export const MarksEntryTab = ({ examId, examSections, examStatus }) => {
+  const locked = examStatus === "published"; // published results are read-only until unpublished
   const [sectionId, setSectionId] = useState(examSections[0]?.id || "");
   const [datesheet, setDatesheet] = useState([]);
   const [subjectId, setSubjectId] = useState("");
@@ -77,24 +79,36 @@ export const MarksEntryTab = ({ examId, examSections }) => {
   };
 
   const markAllAbsent = () => {
-    setRoster((prev) => prev.map((r) => ({ ...r, status: "absent", marks_obtained: 0 })));
+    setRoster((prev) => prev.map((r) => ({ ...r, status: "absent", marks_obtained: null, grade_obtained: null })));
   };
 
   const handleSave = async () => {
+    if (locked) return alert("Results are published. Unpublish the exam first to edit marks.");
+    const max = Number(activeSubjectMeta?.max_marks);
+    const bad = [];
+    const entries = roster.map((r) => {
+      const status = r.status || "present";
+      // blank marks stay blank (NULL) - the student then shows as "incomplete" instead of silently scoring 0
+      const e = { student_id: r.student_id, status, remarks: r.remarks || null, marks_obtained: null, grade_obtained: null };
+      if (status === "present") {
+        if (activeSubjectMeta?.is_grade_only) e.grade_obtained = r.grade_obtained || null;
+        else if (r.marks_obtained !== "" && r.marks_obtained !== null && r.marks_obtained !== undefined) {
+          const n = Number(r.marks_obtained);
+          if (!Number.isFinite(n) || n < 0 || n > max) bad.push(`${[r.first_name, r.last_name].filter(Boolean).join(" ")}: ${r.marks_obtained}`);
+          e.marks_obtained = n;
+        }
+      }
+      return e;
+    });
+    if (bad.length) return alert(`Marks must be between 0 and ${max}:\n- ${bad.slice(0, 6).join("\n- ")}${bad.length > 6 ? `\n...and ${bad.length - 6} more` : ""}`);
+    const blank = entries.filter((e) => e.status === "present" && e.marks_obtained === null && e.grade_obtained === null).length;
+    if (blank > 0 && !window.confirm(`${blank} student(s) have no marks/grade entered and will show as "incomplete". Save anyway?`)) return;
     setSaving(true);
     try {
-      await apiRequest(`/exams/${examId}/marks`, "POST", {
-        exam_subject_id: activeSubjectMeta?.id,
-        entries: roster.map((r) => ({
-          student_id: r.student_id,
-          marks_obtained: r.status === "present" ? Number(r.marks_obtained) || 0 : 0,
-          status: r.status || "present",
-          remarks: r.remarks || null,
-        })),
-      });
-      alert("✅ Marks saved successfully!");
+      await apiRequest(`/exams/${examId}/marks`, "POST", { exam_subject_id: activeSubjectMeta?.id, entries });
+      alert("Marks saved successfully!");
       await loadRoster();
-    } catch (e) { alert("Save failed: " + e.message); } finally { setSaving(false); }
+    } catch (e) { alert("Save failed: " + explain(e)); } finally { setSaving(false); }
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -156,6 +170,7 @@ export const MarksEntryTab = ({ examId, examSections }) => {
 
   const processCSV = (csvText) => {
     const lines = csvText.trim().split("\n");
+    if (locked) return alert("Results are published. Unpublish the exam first to import marks.");
     if (lines.length < 2) return alert("Invalid or empty CSV file.");
 
     const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
@@ -202,7 +217,7 @@ export const MarksEntryTab = ({ examId, examSections }) => {
         if (!rawMark || rawMark === "") return; // Skip empty cells
 
         let status = "present";
-        let markVal = 0;
+        let markVal = null;
         let gradeVal = null;
         let displayVal = rawMark;
 
@@ -215,6 +230,10 @@ export const MarksEntryTab = ({ examId, examSections }) => {
           status = "leave"; displayVal = "L";
         } else if (rawUpper === "TC") {
           status = "tc"; displayVal = "TC";
+        } else if (rawUpper === "EX" || rawUpper === "EXEMPTED") {
+          status = "exempted"; displayVal = "EX";
+        } else if (rawUpper === "MP" || rawUpper === "MALPRACTICE") {
+          status = "malpractice"; displayVal = "MP";
         } 
         // 🔴 2. If Present, check if subject is Grade-Only
         else if (sm.meta.is_grade_only) {
@@ -285,7 +304,7 @@ export const MarksEntryTab = ({ examId, examSections }) => {
       setImportData(null);
       await loadRoster(); // Reload the UI grid
     } catch (e) {
-      alert("Import failed during saving: " + e.message);
+      alert("Import failed during saving: " + explain(e));
     } finally {
       setImporting(false);
     }
@@ -302,6 +321,11 @@ export const MarksEntryTab = ({ examId, examSections }) => {
 
   return (
     <div>
+      {locked && (
+        <div className="card" style={{ marginBottom: 12, borderColor: C.yellow, color: C.yellow, fontSize: 13, fontWeight: 600 }}>
+          Results are published - marks are read-only. Unpublish the exam (Results tab) to edit.
+        </div>
+      )}
       {/* 🔴 OPTIMIZED: Compact, Responsive, One-Liner Header */}
       <div className="card" style={{ marginBottom: 16, padding: "12px 16px" }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
@@ -371,8 +395,8 @@ export const MarksEntryTab = ({ examId, examSections }) => {
                 <input type="file" accept=".csv" ref={fileRef} style={{ display: "none" }} onChange={handleFileUpload} />
               </div>
 
-              <button className="btn btn-ghost" style={{ fontSize: 12, padding: "8px 12px" }} onClick={markAllAbsent}>Mark Absent</button>
-              <button className="btn btn-primary" style={{ fontSize: 12, padding: "8px 16px" }} onClick={handleSave} disabled={saving || !activeSubjectMeta}>
+              <button className="btn btn-ghost" style={{ fontSize: 12, padding: "8px 12px" }} onClick={markAllAbsent} disabled={locked}>Mark Absent</button>
+              <button className="btn btn-primary" style={{ fontSize: 12, padding: "8px 16px" }} onClick={handleSave} disabled={saving || locked || !activeSubjectMeta}>
                 {saving ? "Saving…" : "Save Marks"}
               </button>
             </div>
@@ -406,7 +430,7 @@ export const MarksEntryTab = ({ examId, examSections }) => {
                     <td style={{ color: C.textMuted }}>{r.roll_no || "—"}</td>
                     <td style={{ fontWeight: 600 }}>{[r.first_name, r.last_name].filter(Boolean).join(" ")}</td>
                     <td>
-                      <select className="select" value={r.status || "present"} onChange={(e) => setEntry(r.student_id, "status", e.target.value)}>
+                      <select className="select" disabled={locked} value={r.status || "present"} onChange={(e) => setEntry(r.student_id, "status", e.target.value)}>
                         {MARK_STATUS_OPTIONS.map((o) => (<option key={o.v} value={o.v}>{o.l}</option>))}
                       </select>
                     </td>
@@ -415,7 +439,7 @@ export const MarksEntryTab = ({ examId, examSections }) => {
                       {activeSubjectMeta.is_grade_only ? (
                         <select
                           className="select"
-                          disabled={r.status !== "present"}
+                          disabled={locked || r.status !== "present"}
                           value={r.status === "present" ? r.grade_obtained ?? "" : ""}
                           onChange={(e) => setEntry(r.student_id, "grade_obtained", e.target.value)}
                           style={{ fontWeight: 800, color: C.yellow, width: 100 }}
@@ -432,15 +456,16 @@ export const MarksEntryTab = ({ examId, examSections }) => {
                           type="number"
                           min={0}
                           max={activeSubjectMeta.max_marks}
-                          disabled={r.status !== "present"}
-                          value={r.status === "present" ? r.marks_obtained ?? "" : 0}
+                          disabled={locked || r.status !== "present"}
+                          placeholder={r.status === "present" ? "" : "-"}
+                          value={r.status === "present" ? r.marks_obtained ?? "" : ""}
                           onChange={(e) => setEntry(r.student_id, "marks_obtained", e.target.value)}
                           style={{ fontWeight: 800, color: C.primary, width: 100 }}
                         />
                       )}
                     </td>
                     <td>
-                      <input className="input" placeholder="optional" value={r.remarks || ""} onChange={(e) => setEntry(r.student_id, "remarks", e.target.value)} />
+                      <input className="input" disabled={locked} placeholder="optional" value={r.remarks || ""} onChange={(e) => setEntry(r.student_id, "remarks", e.target.value)} />
                     </td>
                   </tr>
                 ))}

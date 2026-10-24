@@ -11,6 +11,9 @@ import { C } from "../../theme/theme";
    // ─────────────────────────────────────────────────────────────
    // ─────────────────────────────────────────────────────────────
 
+// special mark statuses -> [short label, long label]
+const ST_LABEL = { absent: ["AB", "Absent"], malpractice: ["MP", "Malpractice"], leave: ["L", "Leave"], tc: ["TC", "TC"], exempted: ["EX", "Exempt"] };
+
 export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [bulkGenerating, setBulkGenerating] = useState(false);
@@ -211,14 +214,14 @@ export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
                   <h3 className="syne" style={{ fontSize: 18, fontWeight: 800 }}>
                     {selectedStudentMeta?.student_name}
                   </h3>
-                  <span className={`badge ${report.status === "pass" ? "badge-green" : "badge-red"}`}>
+                  <span className={`badge ${report.status === "pass" ? "badge-green" : report.status === "incomplete" ? "badge-yellow" : "badge-red"}`}>
                     {report.status?.toUpperCase()}
                   </span>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div className="syne" style={{ fontSize: 24, fontWeight: 800, color: C.primary }}>{report.percentage}%</div>
                   <div style={{ fontSize: 11, color: C.textMuted }}>
-                    Grade <b style={{color: C.text}}>{report.grade}</b> · Class Rank <b style={{color: C.text}}>#{report.class_rank}</b> · School Rank <b style={{color: C.text}}>#{report.school_rank}</b>
+                    Grade <b style={{color: C.text}}>{report.grade}</b> · Class Rank <b style={{color: C.text}}>{report.class_rank ? `#${report.class_rank}` : "-"}</b> · School Rank <b style={{color: C.text}}>{report.school_rank ? `#${report.school_rank}` : "-"}</b>
                   </div>
                 </div>
               </div>
@@ -233,15 +236,15 @@ export const ResultsStudentReportTab = ({ examGroupId, examName, school }) => {
                         {s.is_grade_only ? <span style={{fontSize: 9, marginLeft: 6, color: C.textMuted}}>(Graded)</span> : null}
                       </td>
                       <td className="syne" style={{ fontWeight: 700 }}>
-                        {s.status === "absent" ? "AB" : s.is_grade_only ? (s.grade_obtained || "-") : (s.marks_obtained ?? "-")}
+                        {ST_LABEL[s.status] ? ST_LABEL[s.status][0] : s.is_grade_only ? (s.grade_obtained || "-") : (s.marks_obtained ?? "-")}
                       </td>
                       <td>{s.is_grade_only ? "-" : s.max_marks}</td>
                       <td>
                         {s.is_grade_only ? (
                            <span className="badge badge-yellow">Evaluated</span>
                         ) : (
-                           <span className={`badge ${s.status === "absent" ? "badge-red" : Number(s.marks_obtained) >= Number(s.passing_marks) ? "badge-green" : "badge-red"}`}>
-                             {s.status === "absent" ? "Absent" : Number(s.marks_obtained) >= Number(s.passing_marks) ? "Pass" : "Fail"}
+                           <span className={`badge ${ST_LABEL[s.status] ? (["leave", "tc", "exempted"].includes(s.status) ? "badge-yellow" : "badge-red") : s.marks_obtained === null || s.marks_obtained === undefined ? "badge-yellow" : Number(s.marks_obtained) >= Number(s.passing_marks) ? "badge-green" : "badge-red"}`}>
+                             {ST_LABEL[s.status] ? ST_LABEL[s.status][1] : s.marks_obtained === null || s.marks_obtained === undefined ? "Pending" : Number(s.marks_obtained) >= Number(s.passing_marks) ? "Pass" : "Fail"}
                            </span>
                         )}
                       </td>

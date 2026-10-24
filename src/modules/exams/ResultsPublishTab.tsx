@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { apiRequest } from "../../api/client";
+import { explain } from "../../utils/apiErrors";
 import { Icon } from "../../components/ui/Icon";
 import { Modal } from "../../components/ui/Modal";
 import { useDialog } from "../../contexts/DialogContext";
@@ -22,6 +23,8 @@ export const ResultsPublishTab = ({ exam, examSections, onExamUpdated }) => {
   const [processing, setProcessing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null); // student row to reset
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [stale, setStale] = useState(false); // marks / date sheet changed after the last compute
+  const locked = exam.status === "published";
 
   const load = async () => {
     if (!sectionId) return;
@@ -34,6 +37,7 @@ export const ResultsPublishTab = ({ exam, examSections, onExamUpdated }) => {
       setSubjectCols(
         Array.isArray(res?.data?.subjects) ? res.data.subjects : []
       );
+      setStale(!!res?.data?.stale);
     } catch (e) {
       console.error(e);
       setResults([]);
@@ -46,34 +50,38 @@ export const ResultsPublishTab = ({ exam, examSections, onExamUpdated }) => {
   }, [sectionId]); // eslint-disable-line
 
       // 🔴 FIXED: Now points to the unified Result Engine and passes section_id
-  const handleProcess = async () => {
-    if (!sectionId) return alert("Please select a class/section first.");
-    if (!(await dialogConfirm("Compute/Recompute results for this specific class?", "Recompute Results"))) return;
+  // all = every class of the exam in one go (backend: no section_id)
+  const handleProcess = async (all = false) => {
+    if (locked) return alert("Results are published. Unpublish first to recompute.");
+    if (!all && !sectionId) return alert("Please select a class/section first.");
+    const q = all ? "Compute/Recompute results for ALL classes of this exam?" : "Compute/Recompute results for this class?";
+    if (!(await dialogConfirm(q, "Recompute Results"))) return;
     setProcessing(true);
     try {
-      // 🔴 Nayi API jo section_id ke sath hit hogi
-      const res = await apiRequest(`/results/compute/${exam.id}`, "POST", {
-        section_id: sectionId, 
-      });
-      await load(); // Table reload
-      alert(`✅ ${res?.message || "Results computed successfully!"}`);
+      const res = await apiRequest(`/results/compute/${exam.id}`, "POST", all ? {} : { section_id: sectionId });
+      await load();
+      alert(res?.message || "Results computed successfully!");
     } catch (e) {
-      alert("Processing failed: " + e.message);
+      alert("Processing failed: " + explain(e));
     } finally {
       setProcessing(false);
     }
   };
 
-  const handlePublish = async (publish) => {
+  const handlePublish = async (publish, force = false) => {
     try {
-      await apiRequest(
-        `/exams/${exam.id}/${publish ? "publish" : "unpublish"}`,
-        "PUT"
-      );
+      await apiRequest(`/exams/${exam.id}/${publish ? "publish" : "unpublish"}`, "PUT", publish && force ? { force: true } : undefined);
       onExamUpdated({ ...exam, status: publish ? "published" : "completed" });
       setConfirmPublish(false);
     } catch (e) {
-      alert("Failed: " + e.message);
+      const list = Array.isArray(e?.errors) ? e.errors : [];
+      // only "incomplete marks" left -> the admin may knowingly publish anyway
+      if (publish && !force && e?.status === 409 && list.length && list.every((x) => /incomplete/i.test(x))) {
+        if (await dialogConfirm(`${list.join("\n")}\n\nPublish anyway? Those students will show as "incomplete".`, "Incomplete results")) return handlePublish(true, true);
+        return;
+      }
+      setConfirmPublish(false);
+      alert("Failed: " + explain(e));
     }
   };
 
@@ -87,7 +95,7 @@ export const ResultsPublishTab = ({ exam, examSections, onExamUpdated }) => {
       setConfirmDelete(null);
       await load();
     } catch (e) {
-      alert("Delete failed: " + e.message);
+      alert("Delete failed: " + explain(e));
     }
   };
 
@@ -98,8 +106,9 @@ export const ResultsPublishTab = ({ exam, examSections, onExamUpdated }) => {
     return C.red;
   };
 
-  const passCount = results.filter((r) => r.percentage >= 33).length;
-  const gradeDist = ["A+", "A", "B+", "B", "C", "D", "F"]
+  const passCount = results.filter((r) => r.status === "pass").length;
+  const gradeNames = [...new Set(results.map((r) => r.grade).filter(Boolean))];
+  const gradeDist = gradeNames
     .map((g) => ({
       name: g,
       value: results.filter((r) => r.grade === g).length,
@@ -141,10 +150,19 @@ export const ResultsPublishTab = ({ exam, examSections, onExamUpdated }) => {
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button
               className="btn btn-ghost"
-              onClick={handleProcess}
-              disabled={processing}
+              onClick={() => handleProcess(false)}
+              disabled={processing || locked}
+              title={locked ? "Unpublish to recompute" : ""}
             >
-              {processing ? "Computing…" : "Process / Recompute Results"}
+              {processing ? "Computing..." : "Process / Recompute Results"}
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={() => handleProcess(true)}
+              disabled={processing || locked}
+              title={locked ? "Unpublish to recompute" : "Compute every class of this exam"}
+            >
+              Compute All Classes
             </button>
             {exam.status === "published" ? (
               <button
@@ -165,6 +183,12 @@ export const ResultsPublishTab = ({ exam, examSections, onExamUpdated }) => {
           </div>
         </div>
       </div>
+
+      {stale && !locked && (
+        <div className="card" style={{ marginBottom: 16, borderColor: C.yellow, color: C.yellow, fontSize: 13, fontWeight: 600 }}>
+          Marks or the date sheet changed after the last compute - press "Process / Recompute Results" before publishing.
+        </div>
+      )}
 
       {results.length > 0 && (
         <div

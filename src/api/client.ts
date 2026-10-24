@@ -40,7 +40,7 @@ export const setAuthLogoutRef = (fn) => { authLogoutRef = fn; };
         throw new Error("Session expired. Please login again.");
       }
 
-      if (!response.ok) throw new Error(data.message || data.error || "API Error");
+      if (!response.ok) { const err: any = new Error(data.message || data.error || "API Error"); err.errors = data.errors; err.status = response.status; throw err; }
       return data;
     } catch (error) {
       console.error(`Error on ${endpoint}:`, error.message);
