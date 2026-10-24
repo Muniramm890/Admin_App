@@ -16,7 +16,6 @@ import { useSession } from "../contexts/SessionContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { setNativeTheme, registerPush } from "../native";
-import { AnalyticsModule } from "../modules/analytics/AnalyticsModule";
 import { ArrangementModule } from "../modules/arrangement/ArrangementModule";
 import { AttendanceModule } from "../modules/attendance/AttendanceModule";
 import { AuditLogModule } from "../modules/auditlogs/AuditLogModule";
@@ -25,7 +24,6 @@ import { DashboardModule } from "../modules/dashboard/DashboardModule";
 import { ExamManagementModule } from "../modules/exams/ExamManagementModule";
 import { FeesModule } from "../modules/fees/FeesModule";
 import { HomeworkModule } from "../modules/homework/HomeworkModule";
-import { LeaderboardModule } from "../modules/leaderboard/LeaderboardModule";
 import { PayrollModule } from "../modules/payroll/PayrollModule";
 import { PromotionModule } from "../modules/promotion/PromotionModule";
 import { ResultsModule } from "../modules/results/ResultsModule";
@@ -181,10 +179,6 @@ export const SchoolERP = () => {
             return <PayrollModule school={school} />;
         case "results":
           return <ResultsModule school={school} />;
-      case "leaderboard":
-        return <LeaderboardModule />;
-      case "analytics":
-        return <AnalyticsModule />;
       case "timetable":
         return <TimetableModule />;
       case "tests":

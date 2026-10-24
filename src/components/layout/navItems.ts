@@ -27,8 +27,6 @@ export const NAV_ITEMS = [
     items: [
       { id: "exams", label: "Exam Management", icon: "test" },
       { id: "results", label: "Results", icon: "result" },
-      { id: "leaderboard", label: "Leaderboard", icon: "trophy" },
-      { id: "analytics", label: "Academic Analytics", icon: "academic" },
     ],
   },
   {

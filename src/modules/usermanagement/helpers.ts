@@ -19,8 +19,6 @@ export const PERMISSION_MODULES = [
   { id: "arrangement", label: "Substitution" },
   { id: "exams", label: "Exam Management" },
   { id: "results", label: "Results" },
-  { id: "leaderboard", label: "Leaderboard" },
-  { id: "analytics", label: "Academic Analytics" },
   { id: "students", label: "Students" },
   { id: "commhub", label: "Announcements" },
   { id: "teachers", label: "Teachers" },
